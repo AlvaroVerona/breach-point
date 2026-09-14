@@ -1,0 +1,75 @@
+# Breach Point — central configuration.
+# Every stochastic component reads its seed from here. Do not hardcode
+# constants (dates, thresholds, counts) anywhere else in the codebase.
+
+data:
+  seed: 42
+  n_transactions: 100000
+  start_date: "2023-01-01"
+  end_date: "2025-12-31"
+  base_currency: "EUR"
+  currencies: ["EUR", "USD", "GBP"]
+  entities: ["ENT_EU", "ENT_US", "ENT_UK"]
+  business_units: ["Sales", "Operations", "Marketing", "R&D", "Corporate"]
+  n_accounts: 120
+  duplicate_rate: 0.008
+  missing_rate:
+    default: 0.02
+    currency: 0.002
+    amount: 0.0005
+    optional_metadata: 0.05
+  invalid_rate: 0.01
+  unbalanced_journal_rate: 0.002
+  missing_period_rate: 0.01
+
+quality:
+  severity:
+    missing_transaction_id: CRITICAL
+    missing_amount: CRITICAL
+    missing_currency: HIGH
+    missing_account_id: CRITICAL
+    missing_entity_id: CRITICAL
+    missing_payment_date_unpaid: LOW
+    missing_optional_metadata: INFO
+    duplicate_exact: HIGH
+    duplicate_business_key: HIGH
+    duplicate_near: MEDIUM
+    invalid_currency: HIGH
+    invalid_account: HIGH
+    invalid_entity: HIGH
+    invalid_date: HIGH
+    payment_before_invoice: HIGH
+    negative_amount_not_allowed: MEDIUM
+    amount_mismatch: MEDIUM
+    journal_entry_unbalanced: CRITICAL
+    balance_sheet_imbalance: CRITICAL
+    income_statement_mismatch: HIGH
+    cash_flow_reconciliation_failure: HIGH
+  tolerance_eur: 0.01
+  score_weights:
+    completeness: 0.2
+    uniqueness: 0.2
+    validity: 0.2
+    consistency: 0.2
+    reconciliation: 0.2
+
+forecast:
+  horizon_months: 12
+  validation_months: 6
+
+simulation:
+  n_simulations: 10000
+
+liquidity:
+  minimum_cash: 1000000
+  risk_thresholds:
+    low_max_breach_prob: 0.05
+    medium_max_breach_prob: 0.20
+    high_max_breach_prob: 0.50
+
+optimization:
+  max_borrowing: 5000000
+  borrowing_rate_annual: 0.07
+  max_payment_delay_days: 30
+  max_collections_acceleration_pct: 0.15
+  max_capex_reduction_pct: 0.30
