@@ -17,7 +17,7 @@ above its minimum liquidity requirement.
 - [x] Phase 1 — project setup
 - [x] Phase 2 — synthetic data generation
 - [x] Phase 3 — data quality engine
-- [ ] Phase 4 — financial statements
+- [x] Phase 4 — financial statements
 - [ ] Phase 5 — provisions / accruals
 - [ ] Phase 6 — working capital
 - [ ] Phase 7 — forecasting
@@ -62,15 +62,43 @@ make test
 - **Financial Data Quality Score: 97.9 / 100** — Completeness 97.3, Uniqueness 98.9,
   Validity 98.4, Consistency 99.6, Reconciliation 95.4 (weighted average; every number
   computed from the actual check results, see `reports/outputs/quality_report.json`).
-- 64,249 issues found across schema, completeness, duplicates, validity, consistency and
-  reconciliation checks; 15,130 records (of 185,082 across the three row-level datasets)
-  quarantined for a CRITICAL or HIGH-severity issue — MEDIUM/LOW/INFO issues (e.g.
-  statistical outliers, unpaid-invoice missing payment dates) stay in the validated layer.
+- ~15,000 records (of 185,082 across the three row-level datasets) quarantined for a
+  CRITICAL or HIGH-severity issue — MEDIUM/LOW/INFO issues (e.g. statistical outliers,
+  unpaid-invoice missing payment dates) stay in the validated layer.
   Quarantine cascades to the whole journal document when any one leg is flagged, so the
   validated `transactions.csv` has **zero unbalanced documents** — verified by
   `test_validated_transactions_have_no_unbalanced_documents`, and the reason the
-  reconciliation score (95.4) is a few points lower than the other dimensions: a document
-  with one flagged leg costs the whole document, not just that leg.
+  reconciliation score is a few points lower than the other dimensions: a document with
+  one flagged leg costs the whole document, not just that leg. Opening-balance journal
+  entries (one per entity, seeding the whole Balance Sheet) are excluded from injection
+  entirely — losing one would cascade to the entity's entire opening position, which is a
+  realistic failure mode but not an interesting one to demonstrate by accident.
+
+## Financial statements (Phase 4), actual output from `make build-statements`
+
+- Income Statement, Balance Sheet and Cash Flow built monthly per entity, in EUR, from
+  `data/processed/` (the VALIDATED layer) — 108 entity-months (3 entities × 36 months) per
+  statement.
+- **Balance Sheet reconciles 108/108 entity-months** (Assets = Liabilities + Equity, by
+  double-entry construction — see CLAUDE.md) and **Cash Flow reconciles 108/108**
+  (independently computed Operating/Investing/Financing CF ties to the Balance Sheet's own
+  cash balance, not derived from it — a genuine check, not a tautology).
+- Corporate income tax isn't journaled in the ledger (Phase 2 scope); it's estimated at
+  statement-build time as a flat statutory rate on pre-tax income, with an explicit
+  `income_tax_payable` accrual added to the Balance Sheet so the notional tax deduction
+  doesn't break the accounting equation — this was a real bug caught during this phase (the
+  Balance Sheet failed to reconcile on 108/108 entity-months before the fix, drifting
+  further out of balance every month by exactly the cumulative tax amount).
+- Financing CF is 0 historically — the ledger has no debt issuance/repayment transactions,
+  only interest on a constant opening balance; new borrowing is a Phase 9 optimization
+  lever, not part of these actuals.
+- **Known, transparently-flagged limitation**: 9 of ENT_UK's 36 entity-months have a
+  negative Inventory balance (`economically_implausible = True` in `balance_sheet.csv`).
+  The Balance Sheet still reconciles exactly — this is quarantine removing more
+  purchase-side inventory records (which carry more fields, so more exposure to flagged
+  issues) than consumption-side ones for the entity with the smallest transaction volume,
+  not a data-generation error (raw, pre-quarantine data shows healthy positive inventory
+  for ENT_UK throughout). Surfaced explicitly rather than silently floored.
 - RAW → VALIDATED → QUARANTINED lineage is exact: for every dataset,
   `len(processed) + distinct(quarantined) == len(raw)`, with each quarantined record
   in `data/quarantine/*.csv` carrying `record_id, validation_rule, severity, reason,

@@ -80,6 +80,19 @@ def generate_all() -> dict[str, pd.DataFrame]:
     dq = cfg["data"]
     mr = dq["missing_rate"]
 
+    # Opening-balance documents seed each entity's entire Balance Sheet
+    # (see ledger.opening_balances / CLAUDE.md) and are excluded from
+    # injection entirely -- a real source system does not randomly corrupt
+    # a controlled one-time ledger-migration entry, and if it did, the
+    # quality engine's document-quarantine cascade (Phase 3) would remove
+    # the whole entity's opening position, leaving every subsequent period
+    # reconciled but economically meaningless (e.g. inventory or debt stuck
+    # at exactly what accumulated from zero instead of the true opening
+    # balance). That failure mode is realistic but not an interesting one
+    # to demonstrate, so it's scoped out here rather than left to chance.
+    is_opening = transactions["document_id"].str.startswith("OPEN_", na=False)
+    opening_rows, transactions = transactions[is_opening], transactions[~is_opening].reset_index(drop=True)
+
     transactions = quality_injection.inject_exact_duplicates(transactions, rng, dq["duplicate_rate"])
     transactions = quality_injection.inject_missing_values(transactions, rng, {
         "transaction_id": mr["default"] / 4, "entity_id": mr["default"] / 4,
@@ -94,6 +107,7 @@ def generate_all() -> dict[str, pd.DataFrame]:
     transactions = quality_injection.inject_unbalanced_journal_entries(
         transactions, rng, dq["unbalanced_journal_rate"]
     )
+    transactions = pd.concat([opening_rows, transactions], ignore_index=True)
 
     ar = quality_injection.inject_exact_duplicates(ar, rng, dq["duplicate_rate"])
     ar = quality_injection.inject_missing_values(ar, rng, {
@@ -125,8 +139,9 @@ def generate_all() -> dict[str, pd.DataFrame]:
     )
 
     transactions = _format_dates(transactions, ["transaction_date", "payment_due_date", "payment_date"])
-    transactions["transaction_date"] = quality_injection.inject_invalid_date_strings(
-        transactions["transaction_date"], rng, dq["invalid_rate"] / 8
+    not_opening = ~transactions["document_id"].str.startswith("OPEN_", na=False)
+    transactions.loc[not_opening, "transaction_date"] = quality_injection.inject_invalid_date_strings(
+        transactions.loc[not_opening, "transaction_date"], rng, dq["invalid_rate"] / 8
     )
     ar = _format_dates(ar, ["invoice_date", "due_date", "payment_date"])
     ap = _format_dates(ap, ["invoice_date", "due_date", "payment_date"])

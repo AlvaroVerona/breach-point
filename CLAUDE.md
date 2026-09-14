@@ -98,6 +98,43 @@ management → Streamlit dashboard.
   window) plus amount within 0.5%. If you touch these, re-check the ratio
   of flagged rows against total rows — it should stay in the low single
   digits, not 10%+.
+- **Opening-balance documents are excluded from ALL injection**
+  (`generate_data.py`: split out by `document_id.str.startswith("OPEN_")`
+  before every `quality_injection.*` call on `transactions`, recombined
+  after). Found by building Phase 4's Balance Sheet: one row's
+  `transaction_id` got blanked by the generic missing-value injection,
+  the document-cascade quarantine (correctly) removed the whole 13-line
+  opening entry for that entity, and the entity's Balance Sheet ended up
+  reconciling PERFECTLY but starting from zero instead of its true opening
+  position (debt/common_stock stuck at 0 forever, since nothing else ever
+  posts to those accounts). Regression-tested in
+  `test_balance_sheet_opening_documents_survive_quarantine`.
+- **Corporate income tax is not journaled; it's estimated at
+  statement-build time** (`CORPORATE_TAX_RATE_BY_ENTITY` in
+  `src/accounting/chart_of_accounts.py`) as a flat statutory rate on
+  pre-tax income. This is the single most important Balance Sheet gotcha
+  in this codebase: a notional, non-journaled deduction to Net Income
+  lowers Retained Earnings with no offsetting entry anywhere, so the
+  Balance Sheet drifts further out of balance every single month by
+  exactly the cumulative tax amount (confirmed exactly: month-by-month
+  diff matched cumsum(taxes) to the cent). Fixed by adding an explicit
+  `income_tax_payable` liability (cumulative taxes) in `balance_sheet.py`
+  -- standard accrual treatment, not a plug. Any other statement-level-only
+  adjustment (not journaled in the ledger) needs the same treatment: a real
+  offsetting Balance Sheet line, not just a P&L adjustment.
+- **`economically_implausible` flag on the Balance Sheet**
+  (`balance_sheet.py`): True when Cash/AR/Inventory/OtherCurrentAssets/
+  FixedAssets goes negative, which can happen even on a perfectly
+  reconciling Balance Sheet (Assets=Liabilities+Equity is an arithmetic
+  identity; it says nothing about whether an individual account's sign
+  makes economic sense). Currently flags 9/108 ENT_UK entity-months
+  (negative Inventory) -- quarantine removes purchase-side records (more
+  fields, more exposure to flags) faster than consumption-side ones for
+  the entity with the least transaction volume; confirmed NOT a
+  generation bug by checking raw pre-quarantine data, which shows healthy
+  inventory throughout. Never silently floor a negative balance to 0 to
+  hide this -- that breaks the equation without a matching adjustment,
+  exactly like the tax bug above.
 
 ## Engineering principles
 
