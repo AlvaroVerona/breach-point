@@ -23,7 +23,7 @@ above its minimum liquidity requirement.
 - [x] Phase 7 — forecasting
 - [x] Phase 8 — Monte Carlo simulation
 - [x] Phase 9 — optimization
-- [ ] Phase 10 — Streamlit dashboard
+- [x] Phase 10 — Streamlit dashboard
 - [ ] Phase 11 — tests
 - [ ] Phase 12 — final audit
 
@@ -230,3 +230,26 @@ make test
   (`tests/test_optimization.py`), including an explicit infeasible case (a shortfall no
   combination of capped levers can bridge) to confirm the solver's infeasible-status path is
   exercised, not just assumed to work.
+
+## Dashboard (Phase 10), `make dashboard` (streamlit run app/app.py)
+
+- 7 pages: Executive Overview (`app.py`), Data Quality, Financial Statements, Working
+  Capital, Forecasting, Liquidity Risk, Optimization — matching §41's page list (the repo
+  layout in §6 only sketched 5; Executive Overview and Working Capital were added, see
+  earlier phase notes).
+- Reads `reports/outputs/` and `data/processed/` (what `make all` already produced) rather
+  than recomputing the pipeline on every click — Phase 7's forecasting alone fits a model
+  per series, which would make the UI unusably slow if re-run live. Run the pipeline first,
+  then the dashboard.
+- Data Quality's quarantine table joins the quarantine ledger back to the raw record's own
+  fields (entity, source system, account, date) via `record_id == row_uid`, so it can
+  actually filter by Entity/Source/Severity the way the spec asks — the ledger alone only
+  carries rule/severity/reason, not business fields.
+- Every chart uses a fixed categorical color per entity (never reassigned when a filter
+  changes which entities are shown) and a separate status palette for severity/risk, so a
+  "HIGH" badge is never visually confused with an entity's own color.
+- All 7 pages are tested headlessly with Streamlit's `AppTest` harness
+  (`tests/test_dashboard.py`) — runs each page's actual script and asserts it doesn't raise,
+  the automated version of the manual browser walkthrough used to build them. Caught one
+  real bug this way before automating it: `app/` needed an `__init__.py` to be importable
+  as a package from `app/pages/*.py` (`ModuleNotFoundError: 'app' is not a package`).

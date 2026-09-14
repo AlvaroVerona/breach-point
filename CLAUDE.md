@@ -277,6 +277,34 @@ management → Streamlit dashboard.
   (stochastic dynamic programming) problem, out of scope here. Documented
   in `compare_before_after`'s docstring, not hidden.
 
+- **`app/` needs its own `__init__.py`** (`app/__init__.py`, empty) for
+  `app/pages/*.py` to import `from app.components.data_loader import ...`
+  -- without it, `streamlit run app/app.py` raises `ModuleNotFoundError:
+  No module named 'app.components'; 'app' is not a package`. Found via
+  browser testing before automating it in `tests/test_dashboard.py`'s
+  `AppTest` runs; if you ever see that error again after restructuring
+  `app/`, this is almost certainly why.
+- **Dashboard reads `reports/outputs/` and `data/processed/`, never
+  recomputes the pipeline live** (`app/components/data_loader.py`, all
+  `st.cache_data`). Phase 7's forecasting alone fits a model per series;
+  re-running that per page interaction would make the UI unusable. Run
+  `make all` (or at least through the phase whose page you're viewing)
+  before `make dashboard`.
+- **Data Quality's quarantine table needs a join, not just the
+  ledger** (`load_quarantine_detail` in `data_loader.py`): the quarantine
+  ledger (`data/quarantine/*.csv`) only has `record_id, validation_rule,
+  severity, reason, timestamp` -- no entity/source/account. Those come
+  from `data/raw/*.csv`, joined on `record_id == row_uid` (row position,
+  matching `src/data/ingestion.py`'s scheme). Recomputing row_uid here has
+  to stay in sync with ingestion.py's `f"{name.upper()}_{i+1:08d}"` format.
+- **Test dashboard pages with Streamlit's `AppTest`, not a live server.**
+  `tests/test_dashboard.py` runs each page's actual script via
+  `AppTest.from_file(...).run()` and asserts `not at.exception` --
+  equivalent to a manual browser walkthrough but ~1s for all 7 pages
+  instead of minutes, and it survives running under `pytest` without a
+  browser or port. Use `at.dataframe`, `at.tabs`, etc. to assert on
+  specific widgets when a test needs to check more than "didn't crash."
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code
