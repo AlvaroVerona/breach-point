@@ -305,6 +305,24 @@ management → Streamlit dashboard.
   browser or port. Use `at.dataframe`, `at.tabs`, etc. to assert on
   specific widgets when a test needs to check more than "didn't crash."
 
+- **Test every `main()`, not just the functions it calls**
+  (`tests/test_cli_entrypoints.py`). Every other test file calls a
+  module's underlying functions directly (e.g. `build_balance_sheet(...)`),
+  which never exercises `main()`'s own file-writing/orchestration code --
+  that's the actual `make X` / `python -m src.X` path, and it's a
+  different thing to get wrong (wrong output path, wrong dict keys handed
+  to `json.dump`, etc.) than the logic underneath it. Coverage went from
+  90% to 95% just from adding these. If you add a new `main()`, add its
+  smoke test here too: call it, assert the promised output file(s) exist
+  and are non-empty.
+- **`test_no_pathological_accruals` compares against `expected_cost`
+  (the rolling average), not `recognized_cost`** (`tests/
+  test_provisions.py`). Comparing against recognized_cost directly failed
+  on real data: a single month's recognized cost can legitimately dip
+  close to zero, which makes even a normal-sized accrual look like a huge
+  multiple of it. expected_cost is the stable scale of the series and
+  doesn't have that problem.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code

@@ -94,6 +94,35 @@ def test_small_ledger_documents_balance(coa):
     assert (diff < 0.01).all(), f"{(diff >= 0.01).sum()} documents do not balance"
 
 
+def test_small_ledger_has_valid_ids(coa):
+    """Every ID the clean (pre-injection) ledger produces should actually
+    resolve: transaction_id is unique, account_id exists in the chart of
+    accounts, entity_id matches the entity it was generated for. Injected
+    invalid IDs (Phase 2's quality_injection) are a separate, deliberate
+    concern tested in test_quality.py -- this covers the ledger builder
+    itself, before any corruption is applied."""
+    rng = np.random.default_rng(SEED)
+    entities = master_data.generate_entities().iloc[[0]].reset_index(drop=True)
+    vendors = master_data.generate_vendors(rng, entities, n_vendors=10)
+    customers = master_data.generate_customers(rng, entities, n_customers=15)
+    start_date, end_date = "2023-01-01", "2023-01-01"
+    monthly_series = financial_series.generate_monthly_series(rng, entities, start_date, end_date)
+
+    builder = LedgerBuilder(rng, coa, start_date)
+    opening = opening_balances(rng, entities)
+    events.post_opening_balances(builder, opening)
+    end_ts = pd.Timestamp(end_date) + pd.Timedelta(days=60)
+    events.generate_ar(rng, builder, monthly_series, customers, end_ts)
+    events.generate_ap_opex(rng, builder, monthly_series, vendors, end_ts)
+    transactions = builder.to_frame()
+
+    assert transactions["transaction_id"].is_unique
+    assert transactions["transaction_id"].notna().all()
+    valid_accounts = set(coa["account_id"])
+    assert set(transactions["account_id"]) <= valid_accounts
+    assert set(transactions["entity_id"]) == {"ENT_EU"}
+
+
 @pytest.fixture(scope="module")
 def generated_datasets():
     return generate_all()

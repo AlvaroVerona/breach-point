@@ -24,7 +24,7 @@ above its minimum liquidity requirement.
 - [x] Phase 8 — Monte Carlo simulation
 - [x] Phase 9 — optimization
 - [x] Phase 10 — Streamlit dashboard
-- [ ] Phase 11 — tests
+- [x] Phase 11 — tests
 - [ ] Phase 12 — final audit
 
 ## Quickstart
@@ -253,3 +253,24 @@ make test
   the automated version of the manual browser walkthrough used to build them. Caught one
   real bug this way before automating it: `app/` needed an `__init__.py` to be importable
   as a package from `app/pages/*.py` (`ModuleNotFoundError: 'app' is not a package`).
+
+## Tests (Phase 11), `make test` / `pytest`
+
+- **115 tests, 95% line coverage of `src/`** (`pytest --cov=src --cov-report=term-missing`).
+  Every module in the spec's testing checklist (§44) is covered: data generation (expected
+  columns, row counts, reproducibility, valid IDs), quality (missing/duplicate/invalid/
+  reconciliation detection), accounting (Balance Sheet equation, Cash Flow reconciliation),
+  provisions (accrual arithmetic, no pathological values), forecasting (time split,
+  prediction dimensions, no missing values, no leakage), simulation (simulation count,
+  output dimensions, reproducibility), optimization (feasibility, the cash constraint,
+  non-negativity, an explicit infeasible case).
+- Every module's `main()` CLI entrypoint is tested too (`tests/test_cli_entrypoints.py`),
+  not just its underlying functions — this is the actual `make X` path, and it's the one
+  that writes `reports/outputs/*`, so it's a different (thinner, but real) thing to get
+  wrong than the logic it orchestrates.
+- The remaining ~5% uncovered is almost entirely `if __name__ == "__main__":` guard lines
+  (never executed when a test calls `main()` directly, only when a script runs standalone)
+  and a handful of defensive early-return branches in the quality-injection functions —
+  not untested logic.
+- `make all` runs the full pipeline end to end (including `pytest` as the last step) from
+  a clean environment without errors — see Phase 12 for the from-scratch verification.

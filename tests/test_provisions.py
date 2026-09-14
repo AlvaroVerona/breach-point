@@ -101,3 +101,21 @@ def test_compute_monthly_expense_covers_all_entities(processed):
     monthly = compute_monthly_expense(transactions, coa, fx_rates, "Utilities")
     assert set(monthly["entity_id"]) == {"ENT_EU", "ENT_US", "ENT_UK"}
     assert (monthly["recognized_cost"] > 0).all()
+
+
+def test_no_pathological_accruals(accruals):
+    """estimated_accrual can legitimately be negative (recognized exceeded
+    what was expected that period) -- that's not the bug this guards
+    against. What must never happen is a NaN/inf estimate, or one wildly
+    disproportionate to the actual recognized cost (which would indicate a
+    broken calculation, not real variance -- see
+    test_estimator_is_not_systematically_biased for the aggregate-bias
+    check this complements at the individual-row level)."""
+    assert accruals["estimated_accrual"].apply(np.isfinite).all()
+    # Compared against expected_cost (the rolling average), not
+    # recognized_cost -- a single month's recognized cost can legitimately
+    # dip close to zero, which would make even a normal-sized accrual look
+    # like a huge multiple of it. expected_cost is the stable scale of the
+    # series.
+    reasonable = accruals["estimated_accrual"].abs() <= 5 * accruals["expected_cost"].abs().clip(lower=1.0)
+    assert reasonable.all(), accruals.loc[~reasonable, ["entity_id", "expense_category", "period", "estimated_accrual", "expected_cost"]]
