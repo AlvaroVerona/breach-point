@@ -12,8 +12,8 @@ from src.common.config import load_config
 from src.data.ingestion import load_all_raw
 from src.quality import completeness, consistency, duplicates, reconciliation, validity
 from src.quality.quality_score import (
-    QUARANTINE_SEVERITIES, build_quarantine_ledger, compute_quality_score,
-    run_all_checks, run_quality_engine, split_validated_and_quarantine,
+    QUARANTINE_SEVERITIES, add_document_cascade_issues, build_quarantine_ledger,
+    compute_quality_score, run_all_checks, run_quality_engine, split_validated_and_quarantine,
 )
 
 
@@ -146,26 +146,29 @@ def real_datasets():
     return load_all_raw()
 
 
-def test_run_all_checks_on_real_data(real_datasets, config):
+@pytest.fixture(scope="module")
+def real_issues(real_datasets, config):
     issues = run_all_checks(real_datasets, config)
-    assert len(issues) > 0
-    assert set(issues["severity"]) <= {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
-    row_issues = issues[issues["row_uid"].notna()]
+    return add_document_cascade_issues(real_datasets["transactions"], issues)
+
+
+def test_run_all_checks_on_real_data(real_issues):
+    assert len(real_issues) > 0
+    assert set(real_issues["severity"]) <= {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
+    row_issues = real_issues[real_issues["row_uid"].notna()]
     assert row_issues["dataset"].isin(["transactions", "accounts_receivable", "accounts_payable"]).all()
 
 
-def test_split_partitions_without_loss_or_duplication(real_datasets, config):
-    issues = run_all_checks(real_datasets, config)
-    validated, quarantined = split_validated_and_quarantine(real_datasets, issues)
+def test_split_partitions_without_loss_or_duplication(real_datasets, real_issues):
+    validated, quarantined = split_validated_and_quarantine(real_datasets, real_issues)
     for name in ["transactions", "accounts_receivable", "accounts_payable"]:
         assert len(validated[name]) + len(quarantined[name]) == len(real_datasets[name])
         assert set(validated[name]["row_uid"]).isdisjoint(set(quarantined[name]["row_uid"]))
 
 
-def test_quarantine_ledger_schema(real_datasets, config):
-    issues = run_all_checks(real_datasets, config)
-    _, quarantined = split_validated_and_quarantine(real_datasets, issues)
-    ledgers = build_quarantine_ledger(quarantined, issues)
+def test_quarantine_ledger_schema(real_datasets, real_issues):
+    _, quarantined = split_validated_and_quarantine(real_datasets, real_issues)
+    ledgers = build_quarantine_ledger(quarantined, real_issues)
     expected_cols = {"record_id", "validation_rule", "severity", "reason", "timestamp"}
     for name, ledger in ledgers.items():
         assert expected_cols <= set(ledger.columns)
@@ -173,20 +176,47 @@ def test_quarantine_ledger_schema(real_datasets, config):
             assert ledger["severity"].isin(QUARANTINE_SEVERITIES).all()
 
 
-def test_quality_score_within_bounds(real_datasets, config):
-    issues = run_all_checks(real_datasets, config)
-    score = compute_quality_score(issues, real_datasets, config)
+def test_quality_score_within_bounds(real_datasets, real_issues, config):
+    score = compute_quality_score(real_issues, real_datasets, config)
     assert 0 <= score["overall_score"] <= 100
     for dim_score in score["dimension_scores"].values():
         assert 0 <= dim_score <= 100
 
 
-def test_quality_score_not_hardcoded_differs_with_fewer_issues(real_datasets, config):
-    issues = run_all_checks(real_datasets, config)
-    full_score = compute_quality_score(issues, real_datasets, config)
-    half_issues = issues.iloc[: len(issues) // 4]
+def test_quality_score_not_hardcoded_differs_with_fewer_issues(real_datasets, real_issues, config):
+    full_score = compute_quality_score(real_issues, real_datasets, config)
+    half_issues = real_issues.iloc[: len(real_issues) // 4]
     partial_score = compute_quality_score(half_issues, real_datasets, config)
     assert partial_score["overall_score"] != full_score["overall_score"]
+
+
+def test_validated_transactions_have_no_unbalanced_documents(real_datasets, real_issues):
+    """Regression test for the asymmetric-quarantine bug: a document whose
+    only broken leg was flagged for an unrelated reason must be removed as
+    a whole, not left as an orphaned single leg in the validated layer."""
+    validated, _ = split_validated_and_quarantine(real_datasets, real_issues)
+    t = validated["transactions"].copy()
+    t["debit"] = pd.to_numeric(t["debit"], errors="coerce").fillna(0.0)
+    t["credit"] = pd.to_numeric(t["credit"], errors="coerce").fillna(0.0)
+    balance = t.groupby("document_id")[["debit", "credit"]].sum()
+    assert ((balance["debit"] - balance["credit"]).abs() < 0.01).all()
+
+
+def test_document_cascade_quarantines_orphaned_sibling_leg():
+    transactions = pd.DataFrame({
+        "row_uid": ["T1", "T2", "T3", "T4"],
+        "document_id": ["D1", "D1", "D2", "D2"],
+    })
+    # T1 has an unrelated CRITICAL issue; T2 (its balanced sibling) does not.
+    issues = pd.DataFrame({
+        "row_uid": ["T1"], "dataset": ["transactions"],
+        "validation_rule": ["invalid_currency"], "severity": ["CRITICAL"],
+        "reason": ["bad currency"], "field": ["currency"], "dimension": ["validity"],
+    })
+    augmented = add_document_cascade_issues(transactions, issues)
+    quarantined_uids = set(augmented.loc[augmented["severity"] == "CRITICAL", "row_uid"])
+    assert quarantined_uids == {"T1", "T2"}
+    assert "T3" not in quarantined_uids and "T4" not in quarantined_uids
 
 
 def test_full_quality_engine_run_produces_processed_and_quarantine_files():

@@ -79,6 +79,16 @@ management → Streamlit dashboard.
   (one shared denominator across all 5 dimensions), not a dimension-
   specific count — simple and transparent over precise but harder to
   explain. See `compute_quality_score` in `src/quality/quality_score.py`.
+- **Quarantine cascades at the document level for transactions**
+  (`add_document_cascade_issues` in `src/quality/quality_score.py`): if any
+  leg of a journal document is quarantined for *any* reason, every other
+  leg of that same document is quarantined too (via a synthetic
+  `document_quarantine_cascade` issue, so it still shows up in the
+  quarantine ledger and the reconciliation score). Without this, row-level
+  quarantine could orphan a balanced document's surviving leg, breaking
+  Assets = Liabilities + Equity on the VALIDATED layer for a reason
+  unrelated to any deliberately injected imbalance. Regression-tested in
+  `test_validated_transactions_have_no_unbalanced_documents`.
 - **Outlier / near-duplicate detection must group by a fine-grained key.**
   Grouping transactions by `account_category` (6 buckets) or comparing
   invoices across the full 3-year window produced 12k+/13k+ false

@@ -59,15 +59,18 @@ make test
 
 ## Data quality engine (Phase 3), actual output from `make validate`
 
-- **Financial Data Quality Score: 98.4 / 100** — Completeness 97.3, Uniqueness 98.9,
-  Validity 98.4, Consistency 99.6, Reconciliation 97.9 (weighted average; every number
+- **Financial Data Quality Score: 97.9 / 100** — Completeness 97.3, Uniqueness 98.9,
+  Validity 98.4, Consistency 99.6, Reconciliation 95.4 (weighted average; every number
   computed from the actual check results, see `reports/outputs/quality_report.json`).
-- 59,625 issues found across schema, completeness, duplicates, validity, consistency and
-  reconciliation checks; 10,506 records (of 185,082 across the three row-level datasets)
+- 64,249 issues found across schema, completeness, duplicates, validity, consistency and
+  reconciliation checks; 15,130 records (of 185,082 across the three row-level datasets)
   quarantined for a CRITICAL or HIGH-severity issue — MEDIUM/LOW/INFO issues (e.g.
   statistical outliers, unpaid-invoice missing payment dates) stay in the validated layer.
-  `journal_entry_unbalanced` alone accounts for 3,775 quarantined lines — the deliberately
-  broken journal entries plus the emergent effect of exact-duplicate injection noted above.
+  Quarantine cascades to the whole journal document when any one leg is flagged, so the
+  validated `transactions.csv` has **zero unbalanced documents** — verified by
+  `test_validated_transactions_have_no_unbalanced_documents`, and the reason the
+  reconciliation score (95.4) is a few points lower than the other dimensions: a document
+  with one flagged leg costs the whole document, not just that leg.
 - RAW → VALIDATED → QUARANTINED lineage is exact: for every dataset,
   `len(processed) + distinct(quarantined) == len(raw)`, with each quarantined record
   in `data/quarantine/*.csv` carrying `record_id, validation_rule, severity, reason,

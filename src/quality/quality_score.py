@@ -62,6 +62,37 @@ def run_all_checks(datasets: dict[str, pd.DataFrame], config: dict) -> pd.DataFr
     return issues
 
 
+def add_document_cascade_issues(transactions: pd.DataFrame, issues: pd.DataFrame) -> pd.DataFrame:
+    """If any leg of a journal document is quarantined, quarantine the
+    whole document, by adding a synthetic issue for its surviving leg(s).
+    Without this, a balanced document could lose one leg to an unrelated
+    single-row issue (e.g. invalid_currency) while its sibling leg stays in
+    the validated layer -- breaking Assets = Liabilities + Equity on
+    VALIDATED data for a reason that has nothing to do with any
+    deliberately injected imbalance. Implemented as issue rows (not a bare
+    quarantine-set union) so the cascade still shows up in the quarantine
+    ledger and the reconciliation score, with its own audit trail."""
+    row_issues = issues[issues["row_uid"].notna()]
+    quarantine_uids = set(row_issues.loc[row_issues["severity"].isin(QUARANTINE_SEVERITIES), "row_uid"])
+    flagged_docs = set(transactions.loc[transactions["row_uid"].isin(quarantine_uids), "document_id"])
+    if not flagged_docs:
+        return issues
+
+    doc_rows = transactions[transactions["document_id"].isin(flagged_docs)]
+    cascade_uids = sorted(set(doc_rows["row_uid"]) - quarantine_uids)
+    if not cascade_uids:
+        return issues
+
+    cascade_issues = pd.DataFrame({
+        "row_uid": cascade_uids, "dataset": "transactions",
+        "validation_rule": "document_quarantine_cascade", "severity": "CRITICAL",
+        "reason": "Another leg of this document was quarantined for an unrelated issue; "
+                  "removed together to preserve journal balance on the validated layer",
+        "field": None, "dimension": "reconciliation",
+    })
+    return pd.concat([issues, cascade_issues], ignore_index=True)
+
+
 def split_validated_and_quarantine(
     datasets: dict[str, pd.DataFrame], issues: pd.DataFrame,
 ) -> tuple[dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
@@ -135,6 +166,7 @@ def run_quality_engine() -> dict:
 
     log.info("Running quality checks across %d datasets", len(datasets))
     issues = run_all_checks(datasets, config)
+    issues = add_document_cascade_issues(datasets["transactions"], issues)
     log.info("Found %d issues (%d row-level)", len(issues), issues["row_uid"].notna().sum())
     log.info("Issues by severity: %s", issues["severity"].value_counts().to_dict())
 
