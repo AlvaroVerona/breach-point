@@ -41,6 +41,26 @@ management → Streamlit dashboard.
   `vendors.csv`, `customers.csv` are generated explicitly — referential
   integrity checks validate against these, not against values inferred from
   the transaction data itself.
+- **Inventory/COGS routing** (`src/data/transaction_events.py`): "Raw
+  Materials" is NOT posted as a direct opex line. COGS targets post
+  Dr COGS / Cr Inventory (consumption); a matching AP-funded purchase posts
+  Dr Inventory / Cr Accounts Payable (replenishment, ~COGS ± noise). This
+  keeps Inventory a real rolling balance instead of a frozen opening value,
+  without double-counting the "Raw Materials" opex target (which is
+  intentionally left unconsumed by the ledger).
+- **Multi-leg entries balance to the cent via a "penny plug" on the last
+  leg** (`LedgerBuilder.post_multi` in `src/data/ledger.py`) — rounding each
+  leg independently first, then pushing the residual onto the last leg,
+  sign-aware by which side (debit/credit) that leg is on. Get the sign
+  wrong here and every multi-leg document is off by a cent; regression-
+  tested in `test_small_ledger_documents_balance`.
+- **Opening Retained Earnings is a legitimate one-time plug**
+  (`opening_balances()` in `ledger.py`): computed once per entity as
+  `assets - liabilities - common stock` to seed a balanced day-1 trial
+  balance, representing accumulated history before the observed window.
+  This is standard practice for seeding a new ledger, not a fabricated
+  result — every period *after* day 1 reconciles through real double-entry
+  postings, not through plugging.
 
 ## Engineering principles
 
