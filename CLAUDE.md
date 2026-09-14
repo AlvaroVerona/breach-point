@@ -337,3 +337,20 @@ Work in phases (data generation → quality engine → statements → provisions
 working capital → forecasting → Monte Carlo → optimization → dashboard →
 tests → final audit). After each phase, run the relevant tests and inspect
 generated output before moving to the next one.
+
+## Phase 12 — final audit (done)
+
+Verified in a **from-scratch clean clone** (fresh `git clone`, new venv,
+`make install && make all`), not just the dev environment — which also
+happened to pull newer major dependency versions (pandas 3.0.5 / numpy
+2.5.3) than development used (2.x line). Every stage reproduced the exact
+figures documented in README.md, 115/115 tests passed, 95% coverage, and
+the dashboard started cleanly. README.md was rewritten from a phase-by-
+phase build log into the polished, portfolio-facing document the spec
+asks for (§52) — this file (CLAUDE.md) keeps the detailed, dated
+engineering log; README.md keeps the results and methodology. If you
+regenerate data/rerun the pipeline and get different headline numbers
+than what's in README.md, that's a real signal something changed — check
+whether it's an intentional code change (update the README) or a
+regression (fix it), never just overwrite the README to match without
+understanding why it moved.

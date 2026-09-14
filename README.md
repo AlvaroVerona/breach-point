@@ -2,275 +2,279 @@
 
 **Financial Analytics Platform**
 
-An end-to-end financial analytics and decision-intelligence platform: it
-validates messy financial data, builds reconciled financial statements,
-forecasts revenue/expenses/cash flow, quantifies liquidity risk with Monte
-Carlo simulation, and optimizes cash-management decisions to keep the company
-above its minimum liquidity requirement.
+An end-to-end financial analytics and decision-intelligence platform: it validates
+messy, multi-entity financial data, builds reconciled financial statements, forecasts
+revenue, expenses and cash flow, quantifies liquidity risk with Monte Carlo
+simulation, and optimizes cash-management decisions to keep the company above its
+minimum liquidity requirement — all on a synthetic but internally consistent
+three-entity, three-currency company, generated and audited end to end by the
+pipeline itself.
 
-> Status: project scaffolding in progress. This README will be filled in
-> with architecture, methodology and actual results as each phase is built —
-> no fabricated numbers.
+Every number in this README comes from an actual run of the pipeline on 2026-09-14
+(`make all`, seed=42). Nothing here is fabricated or hand-typed to look good — where
+a result was underwhelming (e.g. a company too well-capitalized to show any real
+liquidity risk) or a bug produced a wrong number, that's said explicitly below and in
+`CLAUDE.md`, not smoothed over.
 
-## Roadmap
+## Why this exists
 
-- [x] Phase 1 — project setup
-- [x] Phase 2 — synthetic data generation
-- [x] Phase 3 — data quality engine
-- [x] Phase 4 — financial statements
-- [x] Phase 5 — provisions / accruals
-- [x] Phase 6 — working capital
-- [x] Phase 7 — forecasting
-- [x] Phase 8 — Monte Carlo simulation
-- [x] Phase 9 — optimization
-- [x] Phase 10 — Streamlit dashboard
-- [x] Phase 11 — tests
-- [ ] Phase 12 — final audit
+A finance/FP&A team receiving data from five different operational systems (ERP,
+banking, invoicing, payroll, AR/AP) doesn't get to assume it's clean. Before revenue
+gets forecast or a liquidity decision gets made, someone has to answer: *can we trust
+this data, and by how much?* This project builds that whole chain — validate, then
+report, then forecast, then quantify risk, then decide — as working software, not a
+slide deck.
 
-## Quickstart
+## Architecture
 
-```bash
-make install
-make generate-data
-make validate
-make test
+```mermaid
+graph TD
+    A[Raw multi-entity, multi-currency data] --> B[Ingestion: row-level lineage]
+    B --> C[Data Quality Engine]
+    C --> C1[Completeness]
+    C --> C2[Duplicates]
+    C --> C3[Validity & Consistency]
+    C --> C4[Reconciliation]
+    C1 & C2 & C3 & C4 --> D{Quarantine cascade}
+    D -->|flagged| Q[(Quarantine ledger)]
+    D -->|clean| V[(Validated layer)]
+    V --> E[Accounting: Income Statement, Balance Sheet, Cash Flow]
+    E --> F[Provisions / Accruals]
+    E --> G[Working Capital: DSO / DPO / CCC]
+    E --> H[Forecasting: baseline, statistical, ML]
+    H --> I[Monte Carlo: 10,000 simulations]
+    G --> I
+    I --> J[Liquidity Risk Score]
+    J --> K[Cash Management Optimization — OR-Tools LP]
+    K --> L[Streamlit Dashboard: 7 pages]
+    Q -.lineage.-> L
 ```
 
-## Synthetic data (Phase 2), actual output from `make generate-data` with seed=42
+Raw data never gets edited or silently dropped — every record that fails validation
+moves to quarantine with a full lineage trail (`record_id`, `validation_rule`,
+`severity`, `reason`, `timestamp`), and the validated layer downstream is exactly
+`raw − quarantined`, verified in tests to lose or duplicate nothing.
 
-- 3 entities (EUR/USD/GBP), 107 GL accounts, 45 vendors, 180 customers, 36 months (2023-01 to 2025-12)
-- `transactions.csv`: 147,396 double-entry journal lines (73,097 documents)
-- `accounts_receivable.csv`: 18,188 invoices — `accounts_payable.csv`: 19,498 invoices
-- Revenue and expenses are generated first as monthly targets (trend + seasonality +
-  business-unit mix + noise, with a deliberate revenue slowdown in the final months); GL
-  transactions are then generated to sum to those targets, so financial statements built
-  from the ledger stay consistent with the series forecasting will later be trained on.
-- Balance Sheet balances exactly on the 3 opening entries; of the 73,097 posted documents,
-  1,307 (~1.8%) are intentionally unbalanced — partly the deliberately injected broken
-  entries, partly an emergent effect of exact-duplicate row injection (a duplicated single
-  leg breaks that document's balance too, which is realistic).
-- Injected issues (rates in `config/settings.yaml`): ~0.8% exact/duplicate-invoice
-  duplicates, missing values (differentiated by field — 5% on optional metadata, 1% on
-  account_id, 0.05% on amount), invalid currencies/accounts/negative amounts, inconsistent
-  account-category labeling, unbalanced journal entries, one dropped entity-month of AP data,
-  and a handful of syntactically invalid date strings.
-- Reproducible: identical seed produces a byte-identical `transactions.csv` (see
-  `tests/test_data_generation.py::test_generate_all_reproducible`).
+## Results
 
-## Data quality engine (Phase 3), actual output from `make validate`
+| | |
+|---|---|
+| Financial Data Quality Score | **97.97 / 100** (Completeness 97.6, Uniqueness 98.9, Validity 98.3, Consistency 99.6, Reconciliation 95.4) |
+| Records quarantined | **15,458** of 188,939 raw records across transactions/AR/AP (CRITICAL/HIGH severity only) |
+| Balance Sheet reconciliation | **108/108** entity-months PASS (Assets = Liabilities + Equity, by double-entry construction) |
+| Cash Flow reconciliation | **108/108** entity-months PASS (independently computed, tied to the Balance Sheet's own cash) |
+| Consolidated revenue (36mo) | **€69.2M** — Net income: **€8.75M** (ENT_EU €2.37M, ENT_UK €2.55M, ENT_US €3.84M) |
+| Working capital | DSO 56–108 days · DPO 56–132 days · CCC mostly positive (12–165 days), ENT_EU briefly dips to -4 |
+| Forecast model selection (18 series) | naive 7 · gradient boosting 4 · exponential smoothing 4 · seasonal naive 3 — no single family dominates |
+| Liquidity risk (base/optimistic/pessimistic) | **LOW** in all three — worst simulated consolidated cash never drops below €13.3M against a €2.75M policy |
+| Optimization (stress-test demo) | Liquidity risk **CRITICAL (100% breach) → LOW (2.2%)** for ~€50,081 total cost |
 
-- **Financial Data Quality Score: 97.9 / 100** — Completeness 97.3, Uniqueness 98.9,
-  Validity 98.4, Consistency 99.6, Reconciliation 95.4 (weighted average; every number
-  computed from the actual check results, see `reports/outputs/quality_report.json`).
-- ~15,000 records (of 185,082 across the three row-level datasets) quarantined for a
-  CRITICAL or HIGH-severity issue — MEDIUM/LOW/INFO issues (e.g. statistical outliers,
-  unpaid-invoice missing payment dates) stay in the validated layer.
-  Quarantine cascades to the whole journal document when any one leg is flagged, so the
-  validated `transactions.csv` has **zero unbalanced documents** — verified by
-  `test_validated_transactions_have_no_unbalanced_documents`, and the reason the
-  reconciliation score is a few points lower than the other dimensions: a document with
-  one flagged leg costs the whole document, not just that leg. Opening-balance journal
-  entries (one per entity, seeding the whole Balance Sheet) are excluded from injection
-  entirely — losing one would cascade to the entity's entire opening position, which is a
-  realistic failure mode but not an interesting one to demonstrate by accident.
+The full per-phase breakdown — methodology, exact figures, and every bug found and
+fixed while building each stage — lives in `CLAUDE.md`; the highlights are below.
 
-## Financial statements (Phase 4), actual output from `make build-statements`
+## How it works
 
-- Income Statement, Balance Sheet and Cash Flow built monthly per entity, in EUR, from
-  `data/processed/` (the VALIDATED layer) — 108 entity-months (3 entities × 36 months) per
-  statement.
-- **Balance Sheet reconciles 108/108 entity-months** (Assets = Liabilities + Equity, by
-  double-entry construction — see CLAUDE.md) and **Cash Flow reconciles 108/108**
-  (independently computed Operating/Investing/Financing CF ties to the Balance Sheet's own
-  cash balance, not derived from it — a genuine check, not a tautology).
-- Corporate income tax isn't journaled in the ledger (Phase 2 scope); it's estimated at
-  statement-build time as a flat statutory rate on pre-tax income, with an explicit
-  `income_tax_payable` accrual added to the Balance Sheet so the notional tax deduction
-  doesn't break the accounting equation — this was a real bug caught during this phase (the
-  Balance Sheet failed to reconcile on 108/108 entity-months before the fix, drifting
-  further out of balance every month by exactly the cumulative tax amount).
-- Financing CF is 0 historically — the ledger has no debt issuance/repayment transactions,
-  only interest on a constant opening balance; new borrowing is a Phase 9 optimization
-  lever, not part of these actuals.
-- **Known, transparently-flagged limitation**: 9 of ENT_UK's 36 entity-months have a
-  negative Inventory balance (`economically_implausible = True` in `balance_sheet.csv`).
-  The Balance Sheet still reconciles exactly — this is quarantine removing more
-  purchase-side inventory records (which carry more fields, so more exposure to flagged
-  issues) than consumption-side ones for the entity with the smallest transaction volume,
-  not a data-generation error (raw, pre-quarantine data shows healthy positive inventory
-  for ENT_UK throughout). Surfaced explicitly rather than silently floored.
+### 1. Synthetic data (`src/data/`)
 
-## Provisions / accruals (Phase 5), actual output from `make provisions`
+Three legal entities (`ENT_EU`/EUR, `ENT_US`/USD, `ENT_UK`/GBP), 107 GL accounts, 45
+vendors, 180 customers, 36 months (2023–2025). Revenue and expenses are generated
+first as monthly targets (trend, seasonality, business-unit mix, a deliberate
+late-window slowdown, and empirical noise); a real double-entry ledger is then built
+to match those targets, so financial statements built from the ledger stay
+consistent with the series forecasting is trained on. **147k+ transaction lines**,
+reproducible bit-for-bit under seed=42 (verified in CI and in a from-scratch clean
+clone, see *Verification* below).
 
-- `Accrual_t = ExpectedExpense_t - RecognizedExpense_t` for Utilities, Professional Services
-  and Logistics (per entity/business unit) and Interest Expense (per entity) — 1,619
-  monthly estimates, `expected_cost` from a trailing 3-month rolling average (with the
-  expanding-window historical average and same-calendar-month seasonal average also
-  reported, for transparency on the method choice), plus a 95% confidence interval from the
-  standard error of that rolling window.
-- The estimator is **not systematically biased**: mean accrual per category is small
-  relative to mean recognized cost — Utilities +€3.4 vs. €1,087 average, Professional
-  Services -€7.1 vs. €1,545, Logistics -€29.2 vs. €4,435, Interest Expense +€19.8 vs.
-  €9,131 — verified by `test_estimator_is_not_systematically_biased` (mean accrual < 15% of
-  mean recognized cost for every category). This dataset has no artificial invoice-arrival
-  lag (every AP invoice is dated within the month it belongs to), so these accruals reflect
-  genuine month-to-month estimation variance in a recurring cost, not a fabricated
-  reporting gap.
+Realistic data problems are injected on top of the clean ledger: duplicates (~0.8%),
+missing values (rate varies by field — 5% on optional metadata, 1% on account IDs,
+0.05% on amount), invalid currencies/accounts/negative amounts, misclassified
+accounts, unbalanced journal entries, a dropped entity-month of AP data, and
+malformed dates.
 
-## Working capital (Phase 6), actual output from `make working-capital`
+### 2. Data Quality Engine (`src/quality/`)
 
-- DSO, DPO, DIO and Cash Conversion Cycle per entity-month, built purely as ratios of the
-  Phase 4 statements — no new data. DPO deliberately uses `AP / (COGS + Operating Expense)`
-  instead of the textbook `AP / COGS`: this company's AP funds a broad vendor base (rent,
-  software, marketing, logistics, professional services, utilities — not just inventory
-  purchases), so a COGS-only denominator inflated DPO to 150-250+ days; documented in the
-  module docstring and CLAUDE.md.
-- Ranges across the 36-month history: DSO 56-108 days, DPO 56-132 days, DIO 22-215 days,
-  CCC mostly positive (12-165 days, with ENT_EU briefly dipping to -4).
-- **Two real Phase 2 bugs found and fixed while building this**, both in
-  `src/data/transaction_events.py`: (1) no bad-debt write-off mechanism meant ~7% of AR
-  invoices were structurally stuck unpaid forever, making DSO grow without bound over the
-  36-month window (985 invoices were already >6 months overdue with no resolution) — fixed
-  by writing off invoices 120 days past due to a real `Bad Debt Expense` entry, an account
-  the chart of accounts had reserved since Phase 2 but never used; (2) tuned the "genuinely
-  stuck" probability down on both AR (7%→3%) and AP (5%→1%) — AP has no write-off
-  equivalent (a going concern eventually pays its vendors), so a high stuck-rate there would
-  have left AP growing unboundedly the same way.
+Schema, completeness (severity varies by field and business context — a missing
+`payment_date` is LOW severity on an unpaid invoice, HIGH if the invoice is marked
+paid), duplicates (exact, business-key, and a same-day/0.5%-tolerance near-duplicate
+heuristic), validity, referential integrity, and journal-entry reconciliation.
+**Quarantine cascades to the whole document** when any one leg is flagged — a
+document with one bad leg costs the whole document, not just that leg — which is
+exactly why the validated `transactions.csv` has zero unbalanced documents.
 
-## Forecasting (Phase 7), actual output from `make train`
+### 3. Financial Statements (`src/accounting/`)
 
-- 12-month-ahead forecasts for Revenue, Operating Expense, Accounts Receivable, Accounts
-  Payable, Operating Cash Flow and Ending Cash, per entity (18 series total) — baseline
-  (naive, seasonal naive), statistical (Holt-Winters Exponential Smoothing) and ML
-  (scikit-learn `GradientBoostingRegressor`, recursive multi-step, lag/rolling/cyclical
-  features) all evaluated, with the lowest-RMSE model on a genuine 6-month blind holdout
-  selected per series and refit on full history for the real forecast.
-- Model selection was close to a 4-way split (naive 7, gradient boosting 4, exponential
-  smoothing 4, seasonal naive 3, out of 18 series) — no single family dominates, which is
-  itself a useful signal given only 36 months of history per entity.
-- 95% confidence intervals come from the selected model's own held-out validation residuals
-  (widening with √step under a random-walk-error assumption), not from in-sample fit —
-  verified widening by `test_confidence_interval_widens_with_horizon`.
-- **Naive wins for Revenue in all three entities**, and it's a real, explainable finding,
-  not a fluke: the 6-month validation window sits entirely inside Phase 2's deliberate
-  late-window revenue slowdown, where a trend/seasonal model extrapolating the prior growth
-  pattern overshoots right as the regime shifts, while a flat "no change" forecast does
-  comparatively less damage. Exactly the kind of instability Phase 8's Monte Carlo exists to
-  quantify, not paper over.
-- MAPE on Operating Cash Flow is unstable (up to ~280% for one entity) because that series
-  crosses close to zero some months — a known MAPE limitation (dividing by a near-zero
-  actual), not a forecasting failure; RMSE and sMAPE (also reported) are the more reliable
-  metrics for that series.
-- Leakage prevention (§45): every validation-period forecast is produced from the train
-  prefix only — verified by `test_no_leakage_validation_forecast_depends_only_on_train`
-  (corrupting the held-out values doesn't change the forecast, because the forecasting
-  function is never given access to them in the first place).
+Monthly Income Statement, Balance Sheet and Cash Flow per entity, in EUR (converted
+via `fx_rates.csv`). Corporate income tax is estimated at statement-build time (not
+journaled) as a flat statutory rate on pre-tax income, with an explicit
+`income_tax_payable` accrual so the notional deduction doesn't break the accounting
+equation. Cash Flow is computed *independently* from document type and only then
+compared to the Balance Sheet's own cash — a genuine reconciliation check, not a
+tautology.
 
-## Monte Carlo & liquidity risk (Phase 8), actual output from `make simulate risk`
+### 4. Provisions & Working Capital (`src/provisions/`, `src/accounting/working_capital.py`)
 
-- 10,000 simulations × 12 months × 3 entities, consolidated to a single cash-balance
-  distribution per month. Every stochastic input is calibrated from real historical/forecast
-  data rather than invented: Revenue and Operating Expense noise comes from each series' own
-  Phase 7 held-out validation residual std; customer/supplier payment-timing risk is
-  simulated DSO/DPO drawn from their Phase 6 historical distributions (so a slower-paying
-  customer base shows up directly as a cash effect, not just a generic volatility knob);
-  COGS is simulated Revenue × a historical gross-margin distribution; "other" cash flows use
-  the historical Investing CF (CAPEX) distribution net of a near-deterministic interest
-  outflow. Base/Optimistic/Pessimistic scenarios (§32) shift the simulation's center
-  (Revenue ±10%, DSO/DPO shift) before the Monte Carlo explores uncertainty around it.
-- **Recalibrated `liquidity.minimum_cash` from the spec's illustrative €1,000,000 example to
-  €2,750,000** (~2 months of this company's actual ~€1.37M/month consolidated operating cash
-  outflow — a standard treasury buffer policy) — the literal spec number is <1 month of
-  spend for a company holding ~€18M cash, which would make every risk score trivially LOW
-  regardless of scenario and defeat the point of running the simulation at all.
-- **Liquidity Risk: LOW in all three scenarios** — 0% probability of breach, worst simulated
-  consolidated cash ~€13.3M even under the pessimistic scenario, comfortably above the
-  €2.75M threshold. This is an honest result, not a disappointing one: the synthetic company
-  is well-capitalized and profitable, and the Monte Carlo correctly reflects that rather than
-  being tuned to manufacture a crisis. `test_pessimistic_breach_probability_not_below_optimistic`
-  and `test_scenario_direction_is_correct` confirm the simulation responds in the right
-  direction to each scenario even though none of them currently breach.
-- Since the base/scenario analysis doesn't produce a liquidity event to react to, Phase 9's
-  optimization will additionally test a deliberately more severe stress case, to exercise the
-  cash-management decision mechanism (borrowing, collections acceleration, CAPEX deferral)
-  under conditions where it actually has something to solve — documented explicitly as a
-  stress test, not presented as the base-case forecast.
+`Accrual = ExpectedExpense (rolling 3-month average) − RecognizedExpense`, with a
+95% confidence interval from the estimate's own standard error, for Utilities,
+Professional Services, Logistics and Interest Expense — 1,615 estimates, verified
+unbiased (mean accrual stays under 15% of mean recognized cost in every category).
 
-## Optimization (Phase 9), actual output from `make optimize`
+DSO/DIO/CCC use the textbook formula; **DPO deliberately uses
+`AP / (COGS + Operating Expense)`, not the textbook `AP / COGS`** — this company's AP
+funds a broad vendor base (rent, software, marketing, logistics — not just inventory
+purchases), and a COGS-only denominator inflated DPO to 150–250+ days.
 
-- A continuous LP (OR-Tools GLOP) chooses the lowest-cost combination of short-term
-  borrowing, receivables factoring (accelerated collections), payment deferral and CAPEX
-  reduction that keeps consolidated cash at or above a minimum-cash requirement in every
-  month, against a deterministic baseline (point forecasts, no randomness — consistent with
-  the project's documented "optimize against the expected case, then re-run Monte Carlo"
-  split).
-- **Two calibration problems found and fixed while building this, both documented in
-  CLAUDE.md rather than silently patched over:**
-  1. The real liquidity policy (€2.75M) is never breached even under the Phase 8 stress
-     scenario (€11.3M of headroom remains) — optimizing against it trivially finds "do
-     nothing." Rather than manufacture an artificial crisis by inflating the stress
-     assumptions to absurd levels (tried up to -95% revenue and still didn't breach the
-     *consolidated*, cash-pooled position — a genuinely interesting diversification-benefit
-     finding in its own right), the demonstration uses an explicitly-labeled hypothetical
-     stricter policy (`optimization.demo_minimum_cash`, €16M) solely to exercise the decision
-     mechanism — never presented as the real liquidity policy.
-  2. A deterministic LP has no concept of uncertainty: optimizing against the point-forecast
-     baseline alone barely helped when re-evaluated against the actual Monte Carlo
-     distribution (100% → 97.5% breach probability). Added a volatility-based safety buffer
-     (`SAFETY_BUFFER_Z` standard deviations of the Monte Carlo's own month-by-month spread,
-     a standard chance-constrained-LP approximation) — a real 0/1/2/3-sigma comparison
-     (100% → 71% → 23% → 2.2% breach probability) showed 1 and 2 sigma were genuinely
-     under-protective, not just cheaper.
-- **Result: Liquidity Risk CRITICAL (100% breach probability) → LOW (2.2%)** under the
-  hypothetical €16M demo policy and stress scenario, for a total cost of ~€50,081 (financing
-  €16,391 + factoring €33,690; the CAPEX-deferral lever went unused — cheaper levers covered
-  the shortfall first, a genuine LP result, not a hardcoded preference).
-- Feasibility, the cash constraint, and non-negativity of every decision variable are
-  verified on both handcrafted LP fixtures and the real problem
-  (`tests/test_optimization.py`), including an explicit infeasible case (a shortfall no
-  combination of capped levers can bridge) to confirm the solver's infeasible-status path is
-  exercised, not just assumed to work.
+### 5. Forecasting (`src/forecasting/`)
 
-## Dashboard (Phase 10), `make dashboard` (streamlit run app/app.py)
+Naive/seasonal-naive baselines, Holt-Winters Exponential Smoothing, and scikit-learn
+`GradientBoostingRegressor` (recursive multi-step) — all evaluated on a genuine
+6-month **blind holdout** (train prefix only; corrupting the held-out values doesn't
+change the forecast, verified in tests) and the lowest-RMSE model selected per
+series, refit on full history for the real 12-month forecast. **Naive wins for
+Revenue on all three entities** — a real finding: the holdout window sits inside
+Phase 2's deliberate slowdown, where trend-following models overshoot and "no
+change" happens to do less damage.
 
-- 7 pages: Executive Overview (`app.py`), Data Quality, Financial Statements, Working
-  Capital, Forecasting, Liquidity Risk, Optimization — matching §41's page list (the repo
-  layout in §6 only sketched 5; Executive Overview and Working Capital were added, see
-  earlier phase notes).
-- Reads `reports/outputs/` and `data/processed/` (what `make all` already produced) rather
-  than recomputing the pipeline on every click — Phase 7's forecasting alone fits a model
-  per series, which would make the UI unusably slow if re-run live. Run the pipeline first,
-  then the dashboard.
-- Data Quality's quarantine table joins the quarantine ledger back to the raw record's own
-  fields (entity, source system, account, date) via `record_id == row_uid`, so it can
-  actually filter by Entity/Source/Severity the way the spec asks — the ledger alone only
-  carries rule/severity/reason, not business fields.
-- Every chart uses a fixed categorical color per entity (never reassigned when a filter
-  changes which entities are shown) and a separate status palette for severity/risk, so a
-  "HIGH" badge is never visually confused with an entity's own color.
-- All 7 pages are tested headlessly with Streamlit's `AppTest` harness
-  (`tests/test_dashboard.py`) — runs each page's actual script and asserts it doesn't raise,
-  the automated version of the manual browser walkthrough used to build them. Caught one
-  real bug this way before automating it: `app/` needed an `__init__.py` to be importable
-  as a package from `app/pages/*.py` (`ModuleNotFoundError: 'app' is not a package`).
+### 6. Monte Carlo & Liquidity Risk (`src/simulation/`, `src/risk/`)
 
-## Tests (Phase 11), `make test` / `pytest`
+10,000 simulations × 12 months × 3 entities. Every stochastic input is calibrated
+from real data, not invented: Revenue/OpEx noise from each series' own forecast
+residual std; customer/supplier payment-timing risk from simulated DSO/DPO drawn
+from their historical distributions (so slower-paying customers show up as an actual
+cash effect via simulated AR, not a generic volatility knob); COGS from simulated
+Revenue × historical margin. Base/Optimistic/Pessimistic scenarios shift the
+simulation's center before Monte Carlo explores uncertainty around it.
 
-- **115 tests, 95% line coverage of `src/`** (`pytest --cov=src --cov-report=term-missing`).
-  Every module in the spec's testing checklist (§44) is covered: data generation (expected
-  columns, row counts, reproducibility, valid IDs), quality (missing/duplicate/invalid/
-  reconciliation detection), accounting (Balance Sheet equation, Cash Flow reconciliation),
-  provisions (accrual arithmetic, no pathological values), forecasting (time split,
-  prediction dimensions, no missing values, no leakage), simulation (simulation count,
-  output dimensions, reproducibility), optimization (feasibility, the cash constraint,
-  non-negativity, an explicit infeasible case).
-- Every module's `main()` CLI entrypoint is tested too (`tests/test_cli_entrypoints.py`),
-  not just its underlying functions — this is the actual `make X` path, and it's the one
-  that writes `reports/outputs/*`, so it's a different (thinner, but real) thing to get
-  wrong than the logic it orchestrates.
-- The remaining ~5% uncovered is almost entirely `if __name__ == "__main__":` guard lines
-  (never executed when a test calls `main()` directly, only when a script runs standalone)
-  and a handful of defensive early-return branches in the quality-injection functions —
-  not untested logic.
-- `make all` runs the full pipeline end to end (including `pytest` as the last step) from
-  a clean environment without errors — see Phase 12 for the from-scratch verification.
+**Liquidity risk comes out LOW in all three scenarios.** The minimum-cash policy was
+recalibrated from the spec's illustrative €1,000,000 example to **€2,750,000**
+(~2 months of this company's actual ~€1.37M/month operating outflow) — the literal
+example is under a month of spend for a company holding ~€18M cash, which would make
+every score trivially LOW regardless of scenario. Even after recalibrating, and even
+pushing the pessimistic assumptions much further in ad-hoc testing (down to -95%
+revenue), the *consolidated* (cash-pooled across 3 entities) position never breached
+— a genuine cash-pooling diversification benefit, not a tuning failure.
+
+### 7. Optimization (`src/optimization/`)
+
+A continuous LP (OR-Tools GLOP) chooses the lowest-cost mix of short-term borrowing,
+receivables factoring, payment deferral and CAPEX reduction that keeps consolidated
+cash above a minimum every month. Because the real policy is never threatened, the
+demonstration uses an explicitly-labeled **hypothetical stricter policy (€16M)**
+under a stress scenario, purely to exercise the decision mechanism — reported
+side-by-side with `real_policy_headroom` (always positive) so it's never confused
+with the actual liquidity policy.
+
+A deterministic LP optimized against the point forecast alone barely helped once
+re-evaluated against actual Monte Carlo variance (100% → 97.5% breach probability).
+Adding a volatility-based safety buffer (a standard chance-constrained-LP
+approximation, sized to 3 standard deviations of the Monte Carlo's own month-by-month
+spread after 1σ and 2σ were tested and found under-protective) took it to:
+
+**Liquidity Risk: CRITICAL (100% breach probability) → LOW (2.2%)**, for a total cost
+of ~€50,081 (financing €16,391 + factoring €33,690; CAPEX deferral went unused —
+cheaper levers covered the shortfall first).
+
+## Dashboard
+
+7 pages, reading `reports/outputs/` and `data/processed/` (what `make all` already
+produced) rather than recomputing the pipeline per click.
+
+<p align="center">
+  <img src="docs/screenshots/executive_overview.jpg" width="32%" alt="Executive Overview" />
+  <img src="docs/screenshots/liquidity_risk.jpg" width="32%" alt="Liquidity Risk fan chart" />
+  <img src="docs/screenshots/optimization.jpg" width="32%" alt="Optimization before/after" />
+</p>
+
+Executive Overview · Data Quality (filterable quarantine table, joined back to
+entity/source/account) · Financial Statements · Working Capital · Forecasting ·
+Liquidity Risk (Monte Carlo fan chart shown above) · Optimization (before/after
+comparison shown above, CRITICAL → LOW).
+
+## Verification
+
+Before calling this done, the full pipeline was run in a **from-scratch clean
+clone** (`git clone` into a fresh directory, new venv, `make install && make all`) —
+not just the working dev environment — which happened to also pull newer major
+dependency versions than development used (pandas 3.0.5 / numpy 2.5.3 vs. the 2.x
+line used during development). Every stage produced byte-identical results to the
+documented figures above, and **115/115 tests passed** with **95% line coverage of
+`src/`**. See `CLAUDE.md` for the full list of real bugs found and fixed during
+development (an asymmetric-quarantine balance-sheet bug, an AR write-off gap that let
+receivables grow unboundedly, a DPO formula mismatch, a Monte-Carlo-vs-LP calibration
+gap, and others) — left visible on purpose, since finding and fixing them honestly is
+the actual engineering content of this project.
+
+## Tech stack
+
+Python 3.11+ · pandas, numpy, scipy · scikit-learn, statsmodels · Plotly, Streamlit ·
+pydantic, pandera · OR-Tools · pytest, pytest-cov
+
+## Installation
+
+```bash
+git clone https://github.com/AlvaroVerona/breach-point.git
+cd breach-point
+python3 -m venv .venv && source .venv/bin/activate
+make install
+make all          # full pipeline: data -> quality -> statements -> ... -> tests
+make dashboard     # streamlit run app/app.py
+```
+
+Individual stages: `make generate-data`, `make validate`, `make build-statements`,
+`make provisions`, `make working-capital`, `make train`, `make simulate`,
+`make risk`, `make optimize`, `make test`.
+
+## Project structure
+
+```text
+breach-point/
+├── src/
+│   ├── data/            # generation, ingestion, quality injection
+│   ├── quality/          # schema, completeness, duplicates, validity, consistency, reconciliation
+│   ├── accounting/        # income statement, balance sheet, cash flow, working capital
+│   ├── provisions/        # accrual estimation
+│   ├── forecasting/       # baseline, statistical, ML models + evaluation
+│   ├── simulation/        # Monte Carlo
+│   ├── risk/               # liquidity risk scoring
+│   ├── optimization/       # OR-Tools cash management LP
+│   └── common/              # config loader, logging
+├── app/                    # Streamlit dashboard (7 pages)
+├── config/settings.yaml     # every constant/threshold/seed, nothing hardcoded in code
+├── tests/                   # 115 tests, 95% coverage
+├── reports/outputs/          # pipeline artifacts (CSV/JSON), gitignored
+├── data/{raw,processed,quarantine}/  # RAW -> VALIDATED -> QUARANTINED, gitignored
+└── CLAUDE.md                  # detailed engineering log: every decision and bug, with why
+```
+
+## Limitations
+
+- **Synthetic data.** Realistic in structure and internally consistent, but not real
+  financial data — patterns (seasonality, payment behavior, the deliberate slowdown)
+  are simulated, not observed.
+- **Simplified accounting.** No multi-currency FX gain/loss postings, no full
+  perpetual-inventory costing beyond the simplified purchase/consumption model, no
+  intercompany eliminations.
+- **Simplified financing.** Historical debt balance is flat (no amortization/new
+  issuance) — new borrowing exists only as a forward-looking optimization lever.
+- **Forecast uncertainty is real, not hidden.** MAPE is unstable on any series that
+  crosses near zero (documented, not patched over); confidence intervals come from a
+  6-month holdout on only 36 months of history, which is a small sample.
+- **Optimization is a static, pre-committed plan** applied uniformly to every
+  simulated path, not a reactive policy that adjusts to realized cash — a genuinely
+  harder (stochastic dynamic programming) problem, out of scope here.
+- **The company is well-capitalized by construction**, so the liquidity-risk story
+  needed an explicitly-labeled hypothetical stress policy to have something for the
+  optimizer to solve — a limitation of the specific synthetic company generated, not
+  of the methodology.
+
+## Future improvements
+
+Real ERP/banking integration, automated Excel/API ingestion, a proper database
+backend instead of CSVs, real-time data quality monitoring, full data lineage
+tooling, Airflow orchestration, MLflow model tracking and monitoring, cloud
+deployment, a reactive (not static) optimization policy.
+
+---
+
+*Built as a portfolio project demonstrating end-to-end financial analytics
+engineering: from raw, imperfect multi-entity data to a validated, forecasted,
+risk-quantified, and optimized decision-support system.*
