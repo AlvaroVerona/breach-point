@@ -61,6 +61,33 @@ management → Streamlit dashboard.
   This is standard practice for seeding a new ledger, not a fabricated
   result — every period *after* day 1 reconciles through real double-entry
   postings, not through plugging.
+- **row_uid lineage** (`src/data/ingestion.py`): assigned at ingestion from
+  file row position (`f"{DATASET}_{position:08d}"`), not baked into raw
+  CSVs. Raw CSVs are read with `dtype=str` and dates are kept as strings on
+  ingestion — parsing dates immediately would turn an intentionally invalid
+  string like "2024-02-30" into the same NaT as a genuinely missing date,
+  destroying the distinction `validity.check_invalid_dates` needs to draw.
+  All dates are written as `YYYY-MM-DD`, so quality checks parse with
+  `format="%Y-%m-%d", errors="coerce"` rather than format-sniffing.
+- **Quarantine threshold**: a record is quarantined if it has at least one
+  CRITICAL or HIGH severity issue; MEDIUM/LOW/INFO issues stay in the
+  validated layer (still logged, still count against the quality score).
+  `data/quarantine/*.csv` is a ledger, not a 1:1 record dump — a record
+  flagged for N reasons gets N rows sharing one `record_id`.
+- **Quality score denominator**: every dimension's penalty is divided by
+  `len(transactions) + len(accounts_receivable) + len(accounts_payable)`
+  (one shared denominator across all 5 dimensions), not a dimension-
+  specific count — simple and transparent over precise but harder to
+  explain. See `compute_quality_score` in `src/quality/quality_score.py`.
+- **Outlier / near-duplicate detection must group by a fine-grained key.**
+  Grouping transactions by `account_category` (6 buckets) or comparing
+  invoices across the full 3-year window produced 12k+/13k+ false
+  positives purely from bucketing artifacts. Fixed: outliers group by
+  `account_name` (transactions) / `expense_category` (AP) / `business_unit`
+  (AR); near-duplicates require the *same calendar day* (not a sliding
+  window) plus amount within 0.5%. If you touch these, re-check the ratio
+  of flagged rows against total rows — it should stay in the low single
+  digits, not 10%+.
 
 ## Engineering principles
 

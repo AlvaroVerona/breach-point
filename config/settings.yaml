@@ -30,14 +30,17 @@ quality:
     missing_account_id: CRITICAL
     missing_entity_id: CRITICAL
     missing_payment_date_unpaid: LOW
+    missing_payment_date_inconsistent: HIGH
     missing_optional_metadata: INFO
     duplicate_exact: HIGH
     duplicate_business_key: HIGH
     duplicate_near: MEDIUM
+    duplicate_invoice: HIGH
     invalid_currency: HIGH
     invalid_account: HIGH
     invalid_entity: HIGH
     invalid_date: HIGH
+    inconsistent_classification: HIGH
     payment_before_invoice: HIGH
     negative_amount_not_allowed: MEDIUM
     amount_mismatch: MEDIUM
@@ -45,6 +48,7 @@ quality:
     balance_sheet_imbalance: CRITICAL
     income_statement_mismatch: HIGH
     cash_flow_reconciliation_failure: HIGH
+    subledger_tie_out_failure: HIGH
   tolerance_eur: 0.01
   score_weights:
     completeness: 0.2
