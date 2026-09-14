@@ -19,7 +19,7 @@ above its minimum liquidity requirement.
 - [x] Phase 3 — data quality engine
 - [x] Phase 4 — financial statements
 - [x] Phase 5 — provisions / accruals
-- [ ] Phase 6 — working capital
+- [x] Phase 6 — working capital
 - [ ] Phase 7 — forecasting
 - [ ] Phase 8 — Monte Carlo simulation
 - [ ] Phase 9 — optimization
@@ -116,6 +116,26 @@ make test
   lag (every AP invoice is dated within the month it belongs to), so these accruals reflect
   genuine month-to-month estimation variance in a recurring cost, not a fabricated
   reporting gap.
+
+## Working capital (Phase 6), actual output from `make working-capital`
+
+- DSO, DPO, DIO and Cash Conversion Cycle per entity-month, built purely as ratios of the
+  Phase 4 statements — no new data. DPO deliberately uses `AP / (COGS + Operating Expense)`
+  instead of the textbook `AP / COGS`: this company's AP funds a broad vendor base (rent,
+  software, marketing, logistics, professional services, utilities — not just inventory
+  purchases), so a COGS-only denominator inflated DPO to 150-250+ days; documented in the
+  module docstring and CLAUDE.md.
+- Ranges across the 36-month history: DSO 56-108 days, DPO 56-132 days, DIO 22-215 days,
+  CCC mostly positive (12-165 days, with ENT_EU briefly dipping to -4).
+- **Two real Phase 2 bugs found and fixed while building this**, both in
+  `src/data/transaction_events.py`: (1) no bad-debt write-off mechanism meant ~7% of AR
+  invoices were structurally stuck unpaid forever, making DSO grow without bound over the
+  36-month window (985 invoices were already >6 months overdue with no resolution) — fixed
+  by writing off invoices 120 days past due to a real `Bad Debt Expense` entry, an account
+  the chart of accounts had reserved since Phase 2 but never used; (2) tuned the "genuinely
+  stuck" probability down on both AR (7%→3%) and AP (5%→1%) — AP has no write-off
+  equivalent (a going concern eventually pays its vendors), so a high stuck-rate there would
+  have left AP growing unboundedly the same way.
 - RAW → VALIDATED → QUARANTINED lineage is exact: for every dataset,
   `len(processed) + distinct(quarantined) == len(raw)`, with each quarantined record
   in `data/quarantine/*.csv` carrying `record_id, validation_rule, severity, reason,

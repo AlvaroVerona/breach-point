@@ -11,8 +11,16 @@ from src.data.ledger import LedgerBuilder, _random_dates_in_month, _split_amount
 
 AR_INVOICE_COUNT_RANGE = (10, 28)
 AP_INVOICE_COUNT_RANGE = (2, 6)
-COLLECTION_PROBABILITY = 0.93
+# Fraction of invoices that are genuinely disputed/stuck rather than just
+# slow, independent of the normal timing distribution below. AR's residual
+# is cleaned up via bad-debt write-off (a customer can genuinely default);
+# AP's stays intentionally much smaller since a going-concern company
+# eventually pays its vendors -- with no write-off equivalent on the payables
+# side, a higher rate would leave AP (and DPO) growing without bound.
+COLLECTION_PROBABILITY = 0.97
+AP_PAYMENT_PROBABILITY = 0.99
 CAPEX_QUARTER_PCT_RANGE = (0.010, 0.022)
+BAD_DEBT_WRITEOFF_DAYS_PAST_DUE = 120
 
 
 def _segment_offset(rng: np.random.Generator, segment: str, n: int) -> np.ndarray:
@@ -82,8 +90,12 @@ def generate_ar(
 
             paid = rng.random() < COLLECTION_PROBABILITY and would_be_payment <= end_date
             payment_date = would_be_payment if paid else pd.NaT
+            writeoff_date = due_date + pd.Timedelta(days=BAD_DEBT_WRITEOFF_DAYS_PAST_DUE)
+            written_off = (not paid) and writeoff_date <= end_date
             if paid:
                 status = "Paid"
+            elif written_off:
+                status = "Written Off"
             elif due_date < end_date:
                 status = "Overdue"
             else:
@@ -114,6 +126,15 @@ def generate_ar(
                     amount=amounts[i], currency=cust["currency"], document_id=doc_id_c,
                     document_type="Cash Receipt", counterparty_id=cust["customer_id"],
                     source_system="AR_SYSTEM", due_date=due_date, payment_date=payment_date,
+                )
+            elif written_off:
+                doc_id_w = builder.new_document_id("ARWO")
+                builder.post(
+                    date=writeoff_date, entity_id=entity_id, business_unit=bu,
+                    debit_account=builder.account_by_name("Bad Debt Expense"), credit_account=debit_acc,
+                    amount=amounts[i], currency=cust["currency"], document_id=doc_id_w,
+                    document_type="Bad Debt Writeoff", counterparty_id=cust["customer_id"],
+                    source_system="AR_SYSTEM", due_date=due_date, payment_date=None,
                 )
 
     return pd.DataFrame(ar_rows)
@@ -161,7 +182,7 @@ def _generate_ap_from_targets(rng, builder, targets, vendors, end_date, expense_
             offset = rng.normal(3, 7)
             would_be_payment = due_date + pd.Timedelta(days=float(offset))
 
-            paid = rng.random() < 0.95 and would_be_payment <= end_date
+            paid = rng.random() < AP_PAYMENT_PROBABILITY and would_be_payment <= end_date
             payment_date = would_be_payment if paid else pd.NaT
             if paid:
                 status = "Paid"
@@ -243,7 +264,7 @@ def generate_inventory_and_cogs(
         due_date = invoice_date + pd.Timedelta(days=int(vend["payment_terms_days"]))
         offset = rng.normal(3, 7)
         would_be_payment = due_date + pd.Timedelta(days=float(offset))
-        paid = rng.random() < 0.95 and would_be_payment <= end_date
+        paid = rng.random() < AP_PAYMENT_PROBABILITY and would_be_payment <= end_date
         payment_date = would_be_payment if paid else pd.NaT
         status = "Paid" if paid else ("Overdue" if due_date < end_date else "Open")
 

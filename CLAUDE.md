@@ -153,6 +153,34 @@ management → Streamlit dashboard.
   average is NaN for the first ~12 months of any series (no prior
   occurrence of that calendar month yet) — expected, not a bug.
 
+- **AR write-off + tuned "stuck" payment rates** (`src/data/transaction_events.py`).
+  Found while building Phase 6's DSO: no write-off mechanism meant ~7% of
+  AR invoices were structurally stuck (governed by `COLLECTION_PROBABILITY`
+  regardless of timing) with no resolution, so AR -- and DSO -- grew
+  without bound over the 36-month window (985 invoices were already >6
+  months overdue). Fixed with `BAD_DEBT_WRITEOFF_DAYS_PAST_DUE = 120`: an
+  unpaid invoice past that threshold posts Dr Bad Debt Expense / Cr
+  Accounts Receivable (a real ledger entry, `document_type="Bad Debt
+  Writeoff"`, using the `Bad Debt Expense` account the chart of accounts
+  reserved back in Phase 2 but never used until now). Also tuned
+  `COLLECTION_PROBABILITY` 0.93->0.97 and added `AP_PAYMENT_PROBABILITY`
+  =0.99 (was a bare 0.95 inline) -- AP has no write-off equivalent (a
+  going concern eventually pays its vendors), so its stuck-rate has to
+  stay much lower than AR's, or AP/DPO grows unboundedly the same way. If
+  you ever touch these rates, regenerate the *entire* pipeline (data ->
+  quality -> statements -> provisions -> working capital) and re-check
+  DSO/DPO stay in a believable range (tens to ~150 days), not hundreds.
+- **DPO uses `AP / (COGS + Operating Expense)`, not the textbook
+  `AP / COGS`** (`src/accounting/working_capital.py`). This company's
+  Accounts Payable funds a broad vendor base -- inventory purchases AND
+  most opex categories (rent, software, marketing, logistics, professional
+  services, utilities; only Salaries and Depreciation/Interest/Tax never
+  touch AP) -- not just COGS-related purchasing the way a textbook
+  retailer's AP would. A COGS-only denominator inflated DPO to 150-250+
+  days here. If AP's composition changes (e.g. adding a new expense
+  category that routes through AP), re-derive this denominator rather than
+  assuming it still fits.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code

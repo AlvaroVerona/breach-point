@@ -19,6 +19,9 @@ build-statements:
 provisions:
 	$(PYTHON) -m src.provisions.accrual_model
 
+working-capital:
+	$(PYTHON) -m src.accounting.working_capital
+
 train:
 	$(PYTHON) -m src.forecasting.evaluation
 
@@ -34,7 +37,7 @@ test:
 dashboard:
 	streamlit run app/app.py
 
-all: generate-data validate build-statements provisions train simulate optimize test
+all: generate-data validate build-statements provisions working-capital train simulate optimize test
 
 clean:
 	rm -rf data/raw/*.csv data/processed/*.csv data/processed/*.parquet data/quarantine/*.csv models/*.pkl models/*.joblib reports/figures/* reports/outputs/*
