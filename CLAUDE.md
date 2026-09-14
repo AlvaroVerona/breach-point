@@ -136,6 +136,23 @@ management → Streamlit dashboard.
   hide this -- that breaks the equation without a matching adjustment,
   exactly like the tax bug above.
 
+- **Accrual methodology is "expected vs. recognized," not a fabricated
+  lag** (`src/provisions/accrual_model.py`). The generated ledger has no
+  artificial invoice-arrival delay — every AP invoice is dated within the
+  month it belongs to (Phase 2) — so there is no "missing invoice" gap to
+  recover. Accruals here are legitimately `rolling_average(expected) -
+  actual_recognized`, i.e. real month-to-month estimation variance in a
+  recurring cost, matching the literal formula in the spec (§26) rather
+  than inventing incompleteness that doesn't exist in the data. If you
+  ever add a real invoice-arrival lag to Phase 2, this module's meaning
+  changes materially — re-read this note before touching either.
+- **Rolling average (window=3) is the primary `expected_cost`**; historical
+  (expanding-window) and seasonal (same calendar month, prior years)
+  averages are computed and reported alongside it but not used, so the
+  choice of primary method stays auditable rather than hidden. Seasonal
+  average is NaN for the first ~12 months of any series (no prior
+  occurrence of that calendar month yet) — expected, not a bug.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code

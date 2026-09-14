@@ -18,7 +18,7 @@ above its minimum liquidity requirement.
 - [x] Phase 2 — synthetic data generation
 - [x] Phase 3 — data quality engine
 - [x] Phase 4 — financial statements
-- [ ] Phase 5 — provisions / accruals
+- [x] Phase 5 — provisions / accruals
 - [ ] Phase 6 — working capital
 - [ ] Phase 7 — forecasting
 - [ ] Phase 8 — Monte Carlo simulation
@@ -99,6 +99,23 @@ make test
   issues) than consumption-side ones for the entity with the smallest transaction volume,
   not a data-generation error (raw, pre-quarantine data shows healthy positive inventory
   for ENT_UK throughout). Surfaced explicitly rather than silently floored.
+
+## Provisions / accruals (Phase 5), actual output from `make provisions`
+
+- `Accrual_t = ExpectedExpense_t - RecognizedExpense_t` for Utilities, Professional Services
+  and Logistics (per entity/business unit) and Interest Expense (per entity) — 1,619
+  monthly estimates, `expected_cost` from a trailing 3-month rolling average (with the
+  expanding-window historical average and same-calendar-month seasonal average also
+  reported, for transparency on the method choice), plus a 95% confidence interval from the
+  standard error of that rolling window.
+- The estimator is **not systematically biased**: mean accrual per category is small
+  relative to mean recognized cost — Utilities +€3.4 vs. €1,087 average, Professional
+  Services -€7.1 vs. €1,545, Logistics -€29.2 vs. €4,435, Interest Expense +€19.8 vs.
+  €9,131 — verified by `test_estimator_is_not_systematically_biased` (mean accrual < 15% of
+  mean recognized cost for every category). This dataset has no artificial invoice-arrival
+  lag (every AP invoice is dated within the month it belongs to), so these accruals reflect
+  genuine month-to-month estimation variance in a recurring cost, not a fabricated
+  reporting gap.
 - RAW → VALIDATED → QUARANTINED lineage is exact: for every dataset,
   `len(processed) + distinct(quarantined) == len(raw)`, with each quarantined record
   in `data/quarantine/*.csv` carrying `record_id, validation_rule, severity, reason,
