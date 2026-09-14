@@ -1,4 +1,4 @@
-.PHONY: install generate-data validate build-statements provisions working-capital train simulate optimize test dashboard all clean
+.PHONY: install generate-data validate build-statements provisions working-capital train simulate risk optimize test dashboard all clean
 
 PYTHON := python3
 
@@ -28,6 +28,9 @@ train:
 simulate:
 	$(PYTHON) -m src.simulation.monte_carlo
 
+risk:
+	$(PYTHON) -m src.risk.liquidity
+
 optimize:
 	$(PYTHON) -m src.optimization.cash_management
 
@@ -37,7 +40,7 @@ test:
 dashboard:
 	streamlit run app/app.py
 
-all: generate-data validate build-statements provisions working-capital train simulate optimize test
+all: generate-data validate build-statements provisions working-capital train simulate risk optimize test
 
 clean:
 	rm -rf data/raw/*.csv data/processed/*.csv data/processed/*.parquet data/quarantine/*.csv models/*.pkl models/*.joblib reports/figures/* reports/outputs/*

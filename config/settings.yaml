@@ -65,7 +65,13 @@ simulation:
   n_simulations: 10000
 
 liquidity:
-  minimum_cash: 1000000
+  # ~2 months of consolidated operating cash outflow (COGS + Operating
+  # Expense run-rate is ~EUR 1.37M/month as of the last historical month,
+  # see reports/outputs/income_statement.csv) -- a standard treasury
+  # liquidity-buffer policy, not the spec's illustrative EUR 1,000,000
+  # example, which is far below this company's actual scale (~EUR 18M
+  # cash on hand) and would make the risk score trivially LOW forever.
+  minimum_cash: 2750000
   risk_thresholds:
     low_max_breach_prob: 0.05
     medium_max_breach_prob: 0.20

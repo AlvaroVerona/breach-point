@@ -206,6 +206,38 @@ management → Streamlit dashboard.
   quality problem. Prefer RMSE or sMAPE (both also computed) when judging
   that series specifically.
 
+- **`liquidity.minimum_cash` is €2,750,000, not the spec's illustrative
+  €1,000,000 example** (`config/settings.yaml`). This company holds ~€18M
+  cash against ~€1.37M/month consolidated operating outflow; €1M is under
+  1 month of spend and would make every risk score trivially LOW regardless
+  of scenario, defeating the point of simulating at all. Recalibrated to
+  ~2 months of spend, a standard treasury buffer policy -- derived from
+  actual data, not picked to hit a target score.
+- **Liquidity risk comes out LOW in all three scenarios (0% breach
+  probability), including pessimistic.** This is a genuine result, not a
+  tuning failure -- the company is well-capitalized and profitable in this
+  dataset, and worst simulated consolidated cash (~€13.3M under
+  pessimistic) stays well above €2.75M. Do not "fix" this by inflating
+  simulation volatility or further lowering minimum_cash to manufacture a
+  breach; if Phase 9's optimization needs something to actively solve, use
+  a clearly-labeled additional stress scenario instead, documented as a
+  stress test, not the base case.
+- **Monte Carlo simulation design** (`src/simulation/monte_carlo.py`):
+  every stochastic input is empirically calibrated, not invented --
+  Revenue/OpEx noise from each series' own Phase 7 validation residual
+  std; DSO/DPO (customer/supplier payment timing) from their Phase 6
+  historical distributions; COGS from simulated Revenue × historical
+  margin distribution; AR/AP (and hence collections/payments) derived
+  from simulated Revenue/COGS+OpEx and simulated DSO/DPO, so payment-
+  timing risk has a direct, traceable cash effect rather than being folded
+  into one generic noise term. Documented simplifications: draws are
+  independent across metrics/entities/months (no shared macro shock/
+  correlation structure), and Salaries (paid directly, no AP lag in the
+  ledger) is folded into the same DPO-timed OpEx bucket as everything
+  else. `run_simulation(context, scenario=...)` takes a precomputed
+  `load_simulation_context()` so running base/optimistic/pessimistic
+  doesn't refit Phase 7's GBR models three times.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code
