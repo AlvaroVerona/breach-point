@@ -20,7 +20,7 @@ above its minimum liquidity requirement.
 - [x] Phase 4 — financial statements
 - [x] Phase 5 — provisions / accruals
 - [x] Phase 6 — working capital
-- [ ] Phase 7 — forecasting
+- [x] Phase 7 — forecasting
 - [ ] Phase 8 — Monte Carlo simulation
 - [ ] Phase 9 — optimization
 - [ ] Phase 10 — Streamlit dashboard
@@ -136,15 +136,32 @@ make test
   stuck" probability down on both AR (7%→3%) and AP (5%→1%) — AP has no write-off
   equivalent (a going concern eventually pays its vendors), so a high stuck-rate there would
   have left AP growing unboundedly the same way.
-- RAW → VALIDATED → QUARANTINED lineage is exact: for every dataset,
-  `len(processed) + distinct(quarantined) == len(raw)`, with each quarantined record
-  in `data/quarantine/*.csv` carrying `record_id, validation_rule, severity, reason,
-  timestamp` — nothing is silently dropped, and a record flagged for N reasons gets N
-  ledger rows against the same `record_id`.
-- The near-duplicate and statistical-outlier heuristics were tuned during this phase: an
-  initial pass flagged >13,000 "near duplicates" and >12,000 "outliers" purely from
-  bucketing artifacts (comparing invoices across a whole 3-year window instead of the same
-  calendar day, and comparing amounts within a coarse `account_category` instead of the
-  much more homogeneous `account_name`). Tightened to same-day/±0.5% and finer grouping,
-  which dropped false positives to 43 and 6,265 respectively without touching the
-  intentionally-injected issue counts.
+
+## Forecasting (Phase 7), actual output from `make train`
+
+- 12-month-ahead forecasts for Revenue, Operating Expense, Accounts Receivable, Accounts
+  Payable, Operating Cash Flow and Ending Cash, per entity (18 series total) — baseline
+  (naive, seasonal naive), statistical (Holt-Winters Exponential Smoothing) and ML
+  (scikit-learn `GradientBoostingRegressor`, recursive multi-step, lag/rolling/cyclical
+  features) all evaluated, with the lowest-RMSE model on a genuine 6-month blind holdout
+  selected per series and refit on full history for the real forecast.
+- Model selection was close to a 4-way split (naive 7, gradient boosting 4, exponential
+  smoothing 4, seasonal naive 3, out of 18 series) — no single family dominates, which is
+  itself a useful signal given only 36 months of history per entity.
+- 95% confidence intervals come from the selected model's own held-out validation residuals
+  (widening with √step under a random-walk-error assumption), not from in-sample fit —
+  verified widening by `test_confidence_interval_widens_with_horizon`.
+- **Naive wins for Revenue in all three entities**, and it's a real, explainable finding,
+  not a fluke: the 6-month validation window sits entirely inside Phase 2's deliberate
+  late-window revenue slowdown, where a trend/seasonal model extrapolating the prior growth
+  pattern overshoots right as the regime shifts, while a flat "no change" forecast does
+  comparatively less damage. Exactly the kind of instability Phase 8's Monte Carlo exists to
+  quantify, not paper over.
+- MAPE on Operating Cash Flow is unstable (up to ~280% for one entity) because that series
+  crosses close to zero some months — a known MAPE limitation (dividing by a near-zero
+  actual), not a forecasting failure; RMSE and sMAPE (also reported) are the more reliable
+  metrics for that series.
+- Leakage prevention (§45): every validation-period forecast is produced from the train
+  prefix only — verified by `test_no_leakage_validation_forecast_depends_only_on_train`
+  (corrupting the held-out values doesn't change the forecast, because the forecasting
+  function is never given access to them in the first place).

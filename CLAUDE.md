@@ -181,6 +181,31 @@ management → Streamlit dashboard.
   category that routes through AP), re-derive this denominator rather than
   assuming it still fits.
 
+- **Forecast leakage prevention** (`src/forecasting/evaluation.py`):
+  `evaluate_series` only ever passes `train` (the pre-validation prefix)
+  into a model function -- never `val`. The validation-period forecast is
+  therefore structurally incapable of seeing the values it's being scored
+  against; regression-tested in
+  `test_no_leakage_validation_forecast_depends_only_on_train` by corrupting
+  the held-out values and confirming the forecast doesn't change. The
+  *final* 12-month future forecast intentionally uses the full history
+  (`series`, not `train`) -- that's correct, not leakage, since it's
+  forecasting genuinely unseen future periods beyond the dataset.
+- **Naive beats trend/seasonal models for Revenue on all three entities**
+  -- not a bug. The 6-month validation window (`forecast.validation_months`
+  in config) sits entirely inside Phase 2's deliberate late-window
+  slowdown (`SLOWDOWN_START_MONTHS_FROM_END` in `financial_series.py`), so
+  a model extrapolating the prior growth trend systematically overshoots
+  right when the regime shifts, while "no change" happens to do less
+  damage. If you change the slowdown's magnitude/timing, re-check whether
+  model selection shifts back toward exponential smoothing/GBR -- that
+  would also be a legitimate result, just a different one.
+- **MAPE is unstable on Operating Cash Flow** (up to ~280% for one
+  entity) because that series crosses near zero some months -- a
+  division-by-near-zero artifact of the metric itself, not a forecast
+  quality problem. Prefer RMSE or sMAPE (both also computed) when judging
+  that series specifically.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code
