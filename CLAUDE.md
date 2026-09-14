@@ -238,6 +238,45 @@ management → Streamlit dashboard.
   `load_simulation_context()` so running base/optimistic/pessimistic
   doesn't refit Phase 7's GBR models three times.
 
+- **Optimization uses `optimization.demo_minimum_cash` (€16M), not the
+  real `liquidity.minimum_cash` (€2.75M)** (`src/optimization/
+  cash_management.py`). The real policy has €11.3M of headroom even under
+  the stress scenario -- confirmed by pushing revenue_pct down to -0.95
+  and even -0.97 in ad-hoc testing, which still didn't breach the
+  *consolidated* (cash-pooled across 3 entities) position, though each
+  entity individually would have breached around -0.97 -- a genuine
+  cash-pooling diversification benefit, not a bug. Rather than manufacture
+  an artificial crisis with absurd stress assumptions, `run_optimization`
+  reports `real_policy_headroom` (always positive, tested in
+  `test_real_policy_headroom_is_positive`) and separately runs the demo
+  optimization against the hypothetical stricter policy. Never conflate
+  the two in reporting -- `demo_minimum_cash` is explicitly a "what if"
+  exercise for the decision mechanism, not the actual liquidity policy.
+- **`SAFETY_BUFFER_Z = 3.0`**: the LP's minimum-cash constraint is
+  `demo_minimum_cash + SAFETY_BUFFER_Z * monthly_std`, where `monthly_std`
+  is the Monte Carlo's own per-month cash standard deviation under the
+  stress scenario. Without this buffer, the deterministic LP only
+  protects the single expected path -- re-evaluating that "optimized"
+  plan against actual Monte Carlo variance left breach probability at
+  97.5% (barely improved from 100%). Z=1 and Z=2 were tried first (71%
+  and 23% breach probability respectively) before settling on Z=3 (2.2%)
+  -- if you change this, re-run and check the re-simulated breach
+  probability actually drops to something you'd call "optimized," not
+  just structurally different from before.
+- **`compare_before_after` takes an already-run `mc_result`, not a
+  scenario name** -- it must never re-run the simulation itself. The
+  "before" figures need to be the exact same simulated paths the buffer
+  (`monthly_std`) was computed from and that the "after" adjustment gets
+  applied to; re-simulating with a fresh RNG draw would silently decouple
+  before/after from a consistent set of paths. Regression-tested in
+  `test_compare_before_after_uses_shared_simulation`.
+- **The optimizer's plan is a static, pre-committed policy applied
+  uniformly to every simulated path**, not a reactive one that adjusts to
+  the realized cash trajectory -- a real treasury team observing actual
+  results would adjust the plan monthly, which is a much harder
+  (stochastic dynamic programming) problem, out of scope here. Documented
+  in `compare_before_after`'s docstring, not hidden.
+
 ## Engineering principles
 
 Business logic lives in `src/`, never in notebooks. All stochastic code

@@ -22,7 +22,7 @@ above its minimum liquidity requirement.
 - [x] Phase 6 — working capital
 - [x] Phase 7 — forecasting
 - [x] Phase 8 — Monte Carlo simulation
-- [ ] Phase 9 — optimization
+- [x] Phase 9 — optimization
 - [ ] Phase 10 — Streamlit dashboard
 - [ ] Phase 11 — tests
 - [ ] Phase 12 — final audit
@@ -195,3 +195,38 @@ make test
   cash-management decision mechanism (borrowing, collections acceleration, CAPEX deferral)
   under conditions where it actually has something to solve — documented explicitly as a
   stress test, not presented as the base-case forecast.
+
+## Optimization (Phase 9), actual output from `make optimize`
+
+- A continuous LP (OR-Tools GLOP) chooses the lowest-cost combination of short-term
+  borrowing, receivables factoring (accelerated collections), payment deferral and CAPEX
+  reduction that keeps consolidated cash at or above a minimum-cash requirement in every
+  month, against a deterministic baseline (point forecasts, no randomness — consistent with
+  the project's documented "optimize against the expected case, then re-run Monte Carlo"
+  split).
+- **Two calibration problems found and fixed while building this, both documented in
+  CLAUDE.md rather than silently patched over:**
+  1. The real liquidity policy (€2.75M) is never breached even under the Phase 8 stress
+     scenario (€11.3M of headroom remains) — optimizing against it trivially finds "do
+     nothing." Rather than manufacture an artificial crisis by inflating the stress
+     assumptions to absurd levels (tried up to -95% revenue and still didn't breach the
+     *consolidated*, cash-pooled position — a genuinely interesting diversification-benefit
+     finding in its own right), the demonstration uses an explicitly-labeled hypothetical
+     stricter policy (`optimization.demo_minimum_cash`, €16M) solely to exercise the decision
+     mechanism — never presented as the real liquidity policy.
+  2. A deterministic LP has no concept of uncertainty: optimizing against the point-forecast
+     baseline alone barely helped when re-evaluated against the actual Monte Carlo
+     distribution (100% → 97.5% breach probability). Added a volatility-based safety buffer
+     (`SAFETY_BUFFER_Z` standard deviations of the Monte Carlo's own month-by-month spread,
+     a standard chance-constrained-LP approximation) — a real 0/1/2/3-sigma comparison
+     (100% → 71% → 23% → 2.2% breach probability) showed 1 and 2 sigma were genuinely
+     under-protective, not just cheaper.
+- **Result: Liquidity Risk CRITICAL (100% breach probability) → LOW (2.2%)** under the
+  hypothetical €16M demo policy and stress scenario, for a total cost of ~€50,081 (financing
+  €16,391 + factoring €33,690; the CAPEX-deferral lever went unused — cheaper levers covered
+  the shortfall first, a genuine LP result, not a hardcoded preference).
+- Feasibility, the cash constraint, and non-negativity of every decision variable are
+  verified on both handcrafted LP fixtures and the real problem
+  (`tests/test_optimization.py`), including an explicit infeasible case (a shortfall no
+  combination of capped levers can bridge) to confirm the solver's infeasible-status path is
+  exercised, not just assumed to work.

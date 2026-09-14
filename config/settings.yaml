@@ -83,3 +83,33 @@ optimization:
   max_payment_delay_days: 30
   max_collections_acceleration_pct: 0.15
   max_capex_reduction_pct: 0.30
+  # One-time cost of factoring/accelerating a euro of receivables (a
+  # discount given for early payment / invoice-factoring fee), and of
+  # deferring a euro of planned CAPEX (a rough proxy for the value lost
+  # from delaying growth/maintenance investment). Payment delay has no
+  # direct financial cost in this model -- it's bounded by
+  # max_payment_delay_days and reported separately as operational impact,
+  # since the real cost (strained vendor relationships) isn't a euro figure.
+  factoring_discount_rate: 0.02
+  capex_delay_cost_rate: 0.05
+  # A hypothetical, stricter minimum-cash policy (e.g. "what if the board
+  # wanted a much larger safety margin, or the group had to pre-fund a
+  # major obligation") used ONLY to exercise the optimizer's decision
+  # mechanism. Necessary because this company's real liquidity.minimum_cash
+  # (EUR 2.75M) is never threatened even under the stress_scenario below --
+  # the group's pooled cash position is genuinely resilient (see CLAUDE.md).
+  # Never presented as the actual liquidity policy.
+  demo_minimum_cash: 16000000
+
+# A more severe stress test (§32-style scenario, beyond "pessimistic"),
+# used by the optimizer (Phase 9) together with demo_minimum_cash above.
+# Phase 8's base/optimistic/pessimistic scenarios all show LOW risk against
+# the real EUR 2.75M policy (see CLAUDE.md); this scenario alone still
+# doesn't breach that real policy -- only combined with the hypothetical
+# demo_minimum_cash does the optimizer have levers to actually use. Never
+# presented as a forecast; always labeled "stress test".
+stress_scenario:
+  revenue_pct: -0.35
+  opex_pct: 0.10
+  dso_days: 25.0
+  dpo_days: -10.0

@@ -57,11 +57,23 @@ PERCENTILES = [5, 10, 25, 50, 75, 90, 95]
 # while the Monte Carlo still explores uncertainty *around* that center.
 # Percentages/day-shifts are the spec's own illustrative examples applied
 # consistently to every entity, not tuned per entity to engineer an outcome.
+# "stress" is not part of this static set -- it's a deliberately more
+# severe, explicitly-labeled test used only by Phase 9's optimizer (see
+# config/settings.yaml: stress_scenario), since base/optimistic/pessimistic
+# all show LOW liquidity risk for this company (see CLAUDE.md).
 SCENARIO_ADJUSTMENTS = {
     "base": {"revenue_pct": 0.0, "opex_pct": 0.0, "dso_days": 0.0, "dpo_days": 0.0},
     "optimistic": {"revenue_pct": 0.10, "opex_pct": -0.03, "dso_days": -5.0, "dpo_days": 0.0},
     "pessimistic": {"revenue_pct": -0.10, "opex_pct": 0.05, "dso_days": 10.0, "dpo_days": -5.0},
 }
+
+
+def get_scenario_adjustment(scenario: str) -> dict:
+    if scenario in SCENARIO_ADJUSTMENTS:
+        return SCENARIO_ADJUSTMENTS[scenario]
+    if scenario == "stress":
+        return load_config()["stress_scenario"]
+    raise ValueError(f"Unknown scenario '{scenario}'. Expected one of {list(SCENARIO_ADJUSTMENTS) + ['stress']}.")
 
 
 def _forecast_arrays(forecasts: pd.DataFrame, entity_id: str, metric: str, horizon: int) -> tuple[np.ndarray, np.ndarray]:
@@ -77,7 +89,7 @@ def _entity_inputs(
     working_capital: pd.DataFrame, cash_flow: pd.DataFrame, balance_sheet: pd.DataFrame, horizon: int,
     scenario: str = "base",
 ) -> dict:
-    adj = SCENARIO_ADJUSTMENTS[scenario]
+    adj = get_scenario_adjustment(scenario)
     rev_point, rev_sigma = _forecast_arrays(forecasts, entity_id, "revenue", horizon)
     rev_point = rev_point * (1 + adj["revenue_pct"])
     opex_point, opex_sigma = _forecast_arrays(forecasts, entity_id, "operating_expense", horizon)
@@ -181,8 +193,7 @@ def run_simulation(
     context: dict | None = None, scenario: str = "base",
     n_simulations: int | None = None, seed: int | None = None,
 ) -> dict:
-    if scenario not in SCENARIO_ADJUSTMENTS:
-        raise ValueError(f"Unknown scenario '{scenario}'. Expected one of {list(SCENARIO_ADJUSTMENTS)}.")
+    get_scenario_adjustment(scenario)  # raises ValueError on an unknown scenario name
     config = load_config()
     n_simulations = n_simulations or config["simulation"]["n_simulations"]
     seed = seed if seed is not None else config["data"]["seed"]
