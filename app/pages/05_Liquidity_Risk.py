@@ -38,7 +38,7 @@ col2.metric("P(breach within 12mo)", f"{base.get('probability_of_liquidity_breac
 col3.metric("Expected minimum cash", f"€{base.get('expected_minimum_cash', 0):,.0f}")
 col4.metric("Worst simulated cash", f"€{base.get('worst_simulated_cash', 0):,.0f}")
 
-st.caption(f"Minimum cash requirement: €{minimum_cash:,.0f} (~2 months of consolidated operating outflow -- see CLAUDE.md)")
+st.caption(f"Minimum cash requirement: €{minimum_cash:,.0f} (~2 months of consolidated operating outflow -- see docs/ENGINEERING_LOG.md)")
 
 st.divider()
 st.markdown("#### Consolidated cash -- fan chart (base scenario)")

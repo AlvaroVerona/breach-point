@@ -57,5 +57,5 @@ st.plotly_chart(fig, use_container_width=True)
 st.caption(
     "DPO uses AP / (COGS + Operating Expense) rather than the textbook AP / COGS -- this "
     "company's AP funds a broad vendor base (rent, software, marketing, logistics, not just "
-    "inventory purchases). See CLAUDE.md for why."
+    "inventory purchases). See docs/ENGINEERING_LOG.md for why."
 )

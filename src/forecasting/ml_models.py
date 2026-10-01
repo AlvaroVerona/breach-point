@@ -1,4 +1,4 @@
-"""Gradient Boosting forecast (§29-30), scikit-learn only -- see CLAUDE.md
+"""Gradient Boosting forecast (§29-30), scikit-learn only -- see docs/ENGINEERING_LOG.md
 for why (no XGBoost dependency). Multi-step-ahead forecasting uses the
 recursive strategy: predict one step, feed that prediction back in as the
 next step's lag_1, and so on -- the standard approach for a model that

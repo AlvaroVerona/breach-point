@@ -81,7 +81,7 @@ def generate_all() -> dict[str, pd.DataFrame]:
     mr = dq["missing_rate"]
 
     # Opening-balance documents seed each entity's entire Balance Sheet
-    # (see ledger.opening_balances / CLAUDE.md) and are excluded from
+    # (see ledger.opening_balances / docs/ENGINEERING_LOG.md) and are excluded from
     # injection entirely -- a real source system does not randomly corrupt
     # a controlled one-time ledger-migration entry, and if it did, the
     # quality engine's document-quarantine cascade (Phase 3) would remove

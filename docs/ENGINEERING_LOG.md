@@ -1,11 +1,11 @@
-# Breach Point — engineering notes for Claude Code
+# Breach Point — engineering log
 
 Financial Data Quality, Forecasting & Liquidity Optimization Platform.
 Portfolio project: raw, imperfect financial data → validated data → financial
 statements → forecasts → Monte Carlo liquidity risk → optimized cash
 management → Streamlit dashboard.
 
-## Key decisions (do not relitigate without asking)
+## Key decisions
 
 - **ML forecasting model**: scikit-learn `GradientBoostingRegressor` only.
   No XGBoost dependency — kept the stack minimal on purpose.
@@ -347,7 +347,7 @@ happened to pull newer major dependency versions (pandas 3.0.5 / numpy
 figures documented in README.md, 115/115 tests passed, 95% coverage, and
 the dashboard started cleanly. README.md was rewritten from a phase-by-
 phase build log into the polished, portfolio-facing document the spec
-asks for (§52) — this file (CLAUDE.md) keeps the detailed, dated
+asks for (§52) — this file (docs/ENGINEERING_LOG.md) keeps the detailed, dated
 engineering log; README.md keeps the results and methodology. If you
 regenerate data/rerun the pipeline and get different headline numbers
 than what's in README.md, that's a real signal something changed — check

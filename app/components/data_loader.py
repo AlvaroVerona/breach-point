@@ -14,6 +14,7 @@ import pandas as pd
 import streamlit as st
 
 from src.common.config import PROJECT_ROOT, load_config
+from src.quality.quarantine_detail import build_quarantine_detail, detail_path
 
 REPORTS_DIR = PROJECT_ROOT / "reports" / "outputs"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
@@ -66,13 +67,12 @@ def load_quarantine_detail(name: str, id_column: str) -> pd.DataFrame:
     the Data Quality page can filter by Entity/Source/Severity/Date the way
     the spec asks -- the quarantine ledger alone only carries the rule/
     severity/reason, not the record's business fields."""
+    precomputed = detail_path(name)
     ledger = load_quarantine(name)
     if ledger.empty:
-        return ledger
-    raw = load_raw(name)
-    raw = raw.reset_index().rename(columns={"index": "_raw_row"})
-    raw.insert(0, "row_uid", [f"{name.upper()}_{i + 1:08d}" for i in range(len(raw))])
-    return ledger.merge(raw, left_on="record_id", right_on="row_uid", how="left", suffixes=("", "_raw"))
+        # Hosted demo: the raw/quarantine CSVs aren't shipped, but the joined result is.
+        return _read_csv(precomputed)
+    return build_quarantine_detail(ledger, load_raw(name), name)
 
 
 @st.cache_data

@@ -2,6 +2,13 @@
 
 **Financial Analytics Platform**
 
+[![CI](https://github.com/AlvaroVerona/breach-point/actions/workflows/ci.yml/badge.svg)](https://github.com/AlvaroVerona/breach-point/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+**Run the dashboard locally in 2 minutes:** `pip install -e .` then `make dashboard` —
+the results of a full run are included in `reports/outputs/`, so no pipeline run is needed.
+
 An end-to-end financial analytics and decision-intelligence platform: it validates
 messy, multi-entity financial data, builds reconciled financial statements, forecasts
 revenue, expenses and cash flow, quantifies liquidity risk with Monte Carlo
@@ -14,7 +21,7 @@ Every number in this README comes from an actual run of the pipeline on 2026-09-
 (`make all`, seed=42). Nothing here is fabricated or hand-typed to look good — where
 a result was underwhelming (e.g. a company too well-capitalized to show any real
 liquidity risk) or a bug produced a wrong number, that's said explicitly below and in
-`CLAUDE.md`, not smoothed over.
+`docs/ENGINEERING_LOG.md`, not smoothed over.
 
 ## Why this exists
 
@@ -70,7 +77,7 @@ moves to quarantine with a full lineage trail (`record_id`, `validation_rule`,
 | Optimization (stress-test demo) | Liquidity risk **CRITICAL (100% breach) → LOW (2.2%)** for ~€50,081 total cost |
 
 The full per-phase breakdown — methodology, exact figures, and every bug found and
-fixed while building each stage — lives in `CLAUDE.md`; the highlights are below.
+fixed while building each stage — lives in `docs/ENGINEERING_LOG.md`; the highlights are below.
 
 ## How it works
 
@@ -197,7 +204,7 @@ not just the working dev environment — which happened to also pull newer major
 dependency versions than development used (pandas 3.0.5 / numpy 2.5.3 vs. the 2.x
 line used during development). Every stage produced byte-identical results to the
 documented figures above, and **115/115 tests passed** with **95% line coverage of
-`src/`**. See `CLAUDE.md` for the full list of real bugs found and fixed during
+`src/`**. See `docs/ENGINEERING_LOG.md` for the full list of real bugs found and fixed during
 development (an asymmetric-quarantine balance-sheet bug, an AR write-off gap that let
 receivables grow unboundedly, a DPO formula mismatch, a Monte-Carlo-vs-LP calibration
 gap, and others) — left visible on purpose, since finding and fixing them honestly is
@@ -215,8 +222,8 @@ git clone https://github.com/AlvaroVerona/breach-point.git
 cd breach-point
 python3 -m venv .venv && source .venv/bin/activate
 make install
-make all          # full pipeline: data -> quality -> statements -> ... -> tests
-make dashboard     # streamlit run app/app.py
+make dashboard    # quick look: uses the results committed in reports/outputs/
+make all          # full pipeline (regenerates everything; allow a while): data -> quality -> statements -> ... -> tests
 ```
 
 Individual stages: `make generate-data`, `make validate`, `make build-statements`,
@@ -242,7 +249,8 @@ breach-point/
 ├── tests/                   # 115 tests, 95% coverage
 ├── reports/outputs/          # pipeline artifacts (CSV/JSON), gitignored
 ├── data/{raw,processed,quarantine}/  # RAW -> VALIDATED -> QUARANTINED, gitignored
-└── CLAUDE.md                  # detailed engineering log: every decision and bug, with why
+├── docs/                    # engineering log: every decision and bug, with why
+└── LICENSE                  # MIT
 ```
 
 ## Limitations

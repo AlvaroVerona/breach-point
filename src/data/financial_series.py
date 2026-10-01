@@ -2,7 +2,7 @@
 and business unit. This is the source of truth: GL transactions in
 ledger.py are generated to sum to these targets, so financial statements
 built from transactions stay consistent with the series forecasting models
-are trained on (see CLAUDE.md)."""
+are trained on (see docs/ENGINEERING_LOG.md)."""
 
 from __future__ import annotations
 

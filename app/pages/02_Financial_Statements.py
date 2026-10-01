@@ -73,7 +73,7 @@ with tab2:
     n_implausible = d["economically_implausible"].sum() if "economically_implausible" in d.columns else 0
     badge = "✅ All periods reconcile" if n_fail == 0 else f"⚠️ {n_fail} periods FAIL to reconcile"
     st.markdown(f"**Accounting integrity:** {badge}" + (
-        f" &nbsp;|&nbsp; {n_implausible} periods flagged economically implausible (see CLAUDE.md)"
+        f" &nbsp;|&nbsp; {n_implausible} periods flagged economically implausible (see docs/ENGINEERING_LOG.md)"
         if n_implausible else ""
     ))
 

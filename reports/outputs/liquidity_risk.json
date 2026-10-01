@@ -1,0 +1,40 @@
+{
+  "base": {
+    "minimum_cash_requirement": 2750000,
+    "probability_of_liquidity_breach": 0.0,
+    "expected_minimum_cash": 17296465.72763603,
+    "worst_simulated_cash": 14754495.223340191,
+    "best_simulated_cash": 22158304.210494965,
+    "avg_months_below_threshold": 0.0,
+    "max_months_below_threshold": 0,
+    "pct_simulations_ever_breaching": 0.0,
+    "risk_score": "LOW"
+  },
+  "optimistic": {
+    "minimum_cash_requirement": 2750000,
+    "probability_of_liquidity_breach": 0.0,
+    "expected_minimum_cash": 17777645.72197694,
+    "worst_simulated_cash": 15265832.056085866,
+    "best_simulated_cash": 23548288.826689802,
+    "avg_months_below_threshold": 0.0,
+    "max_months_below_threshold": 0,
+    "pct_simulations_ever_breaching": 0.0,
+    "risk_score": "LOW"
+  },
+  "pessimistic": {
+    "minimum_cash_requirement": 2750000,
+    "probability_of_liquidity_breach": 0.0,
+    "expected_minimum_cash": 16008077.271556573,
+    "worst_simulated_cash": 13335100.609138107,
+    "best_simulated_cash": 20438635.266261626,
+    "avg_months_below_threshold": 0.0,
+    "max_months_below_threshold": 0,
+    "pct_simulations_ever_breaching": 0.0,
+    "risk_score": "LOW"
+  },
+  "risk_thresholds": {
+    "low_max_breach_prob": 0.05,
+    "medium_max_breach_prob": 0.2,
+    "high_max_breach_prob": 0.5
+  }
+}

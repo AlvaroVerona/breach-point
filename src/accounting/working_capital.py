@@ -18,7 +18,7 @@ to 150-250+ days here, 3-5x an already-generous expectation; dividing by
 give or take Salaries, which is paid directly and never touches AP --
 brings it back into a believable range. This is a standard variant used for
 opex-heavy or services businesses, not an arbitrary adjustment; see
-CLAUDE.md for the numbers that motivated it.
+docs/ENGINEERING_LOG.md for the numbers that motivated it.
 
 These are point-in-time (single-month) ratios; a trailing 3-month average
 of each is also computed to smooth month-to-month noise for trend charts,

@@ -39,3 +39,9 @@ reports/outputs/*
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Sample dashboard outputs: the pipeline's result files are committed so
+# `make dashboard` works right after cloning, without running the full pipeline.
+!reports/outputs/*.csv
+!reports/outputs/*.json
+!reports/outputs/*.npy

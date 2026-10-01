@@ -1,7 +1,7 @@
 """Converts multi-currency GL amounts to the base reporting currency (EUR)
 using the monthly fx_rates.csv generated in Phase 2. Every transaction row
 carries its own currency; conversion happens at the month of the
-transaction date, matching how the ledger was generated (see CLAUDE.md)."""
+transaction date, matching how the ledger was generated (see docs/ENGINEERING_LOG.md)."""
 
 from __future__ import annotations
 

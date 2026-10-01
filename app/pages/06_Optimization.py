@@ -33,7 +33,7 @@ st.info(
     f"Demonstration uses a hypothetical stricter policy (€{result['demo_minimum_cash']:,.0f}) under the "
     f"'{result['scenario']}' stress scenario, since the real liquidity policy "
     f"(€{result['real_minimum_cash']:,.0f}) is never breached -- €{result['real_policy_headroom']:,.0f} "
-    "of headroom remains even under stress. See CLAUDE.md."
+    "of headroom remains even under stress. See docs/ENGINEERING_LOG.md."
 )
 
 col1, col2, col3, col4 = st.columns(4)

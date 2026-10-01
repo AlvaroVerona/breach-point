@@ -96,7 +96,7 @@ def test_consolidated_baseline_sums_entities(context):
 
 
 def test_real_policy_headroom_is_positive(context):
-    """Matches the Phase 8/9 finding documented in CLAUDE.md and the
+    """Matches the Phase 8/9 finding documented in docs/ENGINEERING_LOG.md and the
     README: the real EUR 2.75M liquidity policy is never breached, even
     under the stress scenario."""
     result = run_optimization(scenario="stress")
