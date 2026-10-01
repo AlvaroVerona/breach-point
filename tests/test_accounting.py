@@ -89,7 +89,7 @@ def test_balance_sheet_reconciles(balance_sheet):
 
 def test_balance_sheet_flags_economic_implausibility_without_breaking_equation(balance_sheet):
     # The equation must hold even for the entity-months flagged implausible
-    # (see CLAUDE.md) -- the flag is informational, not a reconciliation failure.
+    # (see docs/ENGINEERING_LOG.md) -- the flag is informational, not a reconciliation failure.
     assert (balance_sheet["status"] == "PASS").all()
     assert "economically_implausible" in balance_sheet.columns
 
@@ -101,7 +101,7 @@ def test_cash_flow_reconciles_to_balance_sheet(cash_flow):
 
 def test_cash_flow_financing_is_zero_and_documented(cash_flow):
     # No debt issuance/repayment transactions exist in the historical
-    # ledger (see cash_flow.py docstring / CLAUDE.md) -- financing is a
+    # ledger (see cash_flow.py docstring / docs/ENGINEERING_LOG.md) -- financing is a
     # forward-looking optimization lever, not part of these actuals.
     assert (cash_flow["financing_cf"] == 0).all()
 

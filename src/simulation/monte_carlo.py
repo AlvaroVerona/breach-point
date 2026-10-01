@@ -21,7 +21,7 @@ not invented:
     Other cash flows            <- historical Investing CF (CAPEX)
                                    distribution, net of a near-deterministic
                                    interest outflow (debt balance is roughly
-                                   flat historically -- see CLAUDE.md)
+                                   flat historically -- see docs/ENGINEERING_LOG.md)
 
 Simplifying assumptions, documented rather than hidden: draws are
 independent across metrics/entities/months (no explicit correlation
@@ -60,7 +60,7 @@ PERCENTILES = [5, 10, 25, 50, 75, 90, 95]
 # "stress" is not part of this static set -- it's a deliberately more
 # severe, explicitly-labeled test used only by Phase 9's optimizer (see
 # config/settings.yaml: stress_scenario), since base/optimistic/pessimistic
-# all show LOW liquidity risk for this company (see CLAUDE.md).
+# all show LOW liquidity risk for this company (see docs/ENGINEERING_LOG.md).
 SCENARIO_ADJUSTMENTS = {
     "base": {"revenue_pct": 0.0, "opex_pct": 0.0, "dso_days": 0.0, "dpo_days": 0.0},
     "optimistic": {"revenue_pct": 0.10, "opex_pct": -0.03, "dso_days": -5.0, "dpo_days": 0.0},

@@ -7,7 +7,7 @@ a tautology derived from the same computation.
 
 Financing CF is 0 historically: the generated ledger has no debt issuance/
 repayment transactions (only interest on a constant opening debt balance --
-see CLAUDE.md/ledger.py). Forward-looking financing decisions (new
+see docs/ENGINEERING_LOG.md/ledger.py). Forward-looking financing decisions (new
 borrowing) are a Phase 9 optimization lever, not part of these actuals.
 
 Run: python -m src.accounting.cash_flow

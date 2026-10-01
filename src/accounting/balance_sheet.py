@@ -3,7 +3,7 @@ EUR: cumulative account balances since inception (the opening entry is
 part of that same cumulative sum, dated at the start of the window).
 
 Retained Earnings is NOT read as a cumulative GL balance -- the ledger
-posts it once, at opening, and never again (see CLAUDE.md: no closing
+posts it once, at opening, and never again (see docs/ENGINEERING_LOG.md: no closing
 entries). It is reported here as opening Retained Earnings + cumulative Net
 Income from the Income Statement, which is how retained earnings actually
 works; Assets = Liabilities + Equity holds as a result of that, not despite
@@ -135,7 +135,7 @@ def main() -> None:
         log.warning(
             "%d entity-months have a negative balance on an account that should never be negative "
             "(entities affected: %s) -- the equation still reconciles; see "
-            "'economically_implausible' column and CLAUDE.md", n_implausible, affected,
+            "'economically_implausible' column and docs/ENGINEERING_LOG.md", n_implausible, affected,
         )
 
 

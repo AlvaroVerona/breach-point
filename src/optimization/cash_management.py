@@ -32,7 +32,7 @@ rather than folded into the objective as an invented cost.
 The BaselineNetCF used here is deterministic (point estimates: Phase 7's
 forecast + historical mean margin/DSO/DPO, no randomness) -- consistent
 with the project's documented Monte-Carlo-then-optimize split (see
-CLAUDE.md): optimize against the expected case, then re-run Monte Carlo on
+docs/ENGINEERING_LOG.md): optimize against the expected case, then re-run Monte Carlo on
 the optimized policy to show the before/after liquidity breach probability.
 
 Run: python -m src.optimization.cash_management
@@ -211,7 +211,7 @@ def compare_before_after(mc_result: dict, config: dict, plan: pd.DataFrame, mini
 # uncertainty on its own, so without this the plan only ever protects the
 # single expected path, not the range of outcomes Monte Carlo shows are
 # actually plausible. A lightweight, standard approximation of a full
-# chance-constrained stochastic program (see CLAUDE.md). Z=3 (~99.7% one-
+# chance-constrained stochastic program (see docs/ENGINEERING_LOG.md). Z=3 (~99.7% one-
 # sided coverage under normality, a conventional "three-sigma" safety-stock
 # convention) took the re-simulated breach probability from 100% (Z=0, no
 # buffer) to 2.2% at a modest total cost (~EUR 50k) -- Z=1 and Z=2 were
@@ -223,7 +223,7 @@ SAFETY_BUFFER_Z = 3.0
 def run_optimization(scenario: str = "stress") -> dict:
     """Uses optimization.demo_minimum_cash (a hypothetical, stricter policy)
     rather than the real liquidity.minimum_cash -- the real policy is never
-    breached even under the stress scenario (see CLAUDE.md), so optimizing
+    breached even under the stress scenario (see docs/ENGINEERING_LOG.md), so optimizing
     against it would trivially find "do nothing" as the answer. Reports
     that real-policy headroom explicitly, alongside the demo optimization."""
     config = load_config()

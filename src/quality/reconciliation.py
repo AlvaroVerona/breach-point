@@ -3,7 +3,7 @@
 1. Journal-entry balance: sum(debit) == sum(credit) per document_id. This
    is a transaction-level check, distinct from the Balance Sheet equation
    (Assets = Liabilities + Equity), which is a statement-level check built
-   in Phase 4 (src/accounting/) on the VALIDATED layer -- see CLAUDE.md.
+   in Phase 4 (src/accounting/) on the VALIDATED layer -- see docs/ENGINEERING_LOG.md.
 2. Subledger tie-out: does the AR/AP subledger total for an entity-month
    agree with what actually got posted to the Accounts Receivable /
    Accounts Payable GL account for that entity-month? A material gap is a

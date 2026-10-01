@@ -1,0 +1,39 @@
+{
+  "scenario": "stress",
+  "real_minimum_cash": 2750000,
+  "real_policy_headroom": 11338662.502947558,
+  "demo_minimum_cash": 16000000,
+  "status": "OPTIMAL",
+  "total_cost": 50080.73720837319,
+  "financing_cost": 16391.23176801562,
+  "acceleration_cost": 33689.50544035757,
+  "capex_delay_cost": 0.0,
+  "max_borrow_balance": 1273654.364250007,
+  "max_defer_balance": 1387892.716996635,
+  "total_accelerated": 1684475.2720178785,
+  "total_capex_cut": 0.0,
+  "before": {
+    "minimum_cash_requirement": 16000000,
+    "probability_of_liquidity_breach": 1.0,
+    "expected_minimum_cash": 13695890.536548017,
+    "worst_simulated_cash": 10979164.600373007,
+    "best_simulated_cash": 19132720.90686819,
+    "avg_months_below_threshold": 7.1089,
+    "max_months_below_threshold": 11,
+    "pct_simulations_ever_breaching": 100.0,
+    "risk_score": "CRITICAL",
+    "average_cash": 15657093.881863968
+  },
+  "after": {
+    "minimum_cash_requirement": 16000000,
+    "probability_of_liquidity_breach": 0.0223,
+    "expected_minimum_cash": 16900910.65556532,
+    "worst_simulated_cash": 14453827.345377425,
+    "best_simulated_cash": 21534746.045287378,
+    "avg_months_below_threshold": 0.023,
+    "max_months_below_threshold": 2,
+    "pct_simulations_ever_breaching": 2.23,
+    "risk_score": "LOW",
+    "average_cash": 18011620.16695474
+  }
+}

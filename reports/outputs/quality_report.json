@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-09-14T18:02:43.263438+00:00",
+  "row_counts_raw": {
+    "transactions": 151249,
+    "accounts_receivable": 18188,
+    "accounts_payable": 19502
+  },
+  "row_counts_validated": {
+    "transactions": 137053,
+    "accounts_receivable": 17410,
+    "accounts_payable": 19018
+  },
+  "row_counts_quarantined": {
+    "transactions": 14196,
+    "accounts_receivable": 778,
+    "accounts_payable": 484
+  },
+  "issue_counts_by_severity": {
+    "INFO": 29243,
+    "CRITICAL": 11694,
+    "MEDIUM": 7016,
+    "HIGH": 6938,
+    "LOW": 6140
+  },
+  "issue_counts_by_rule": {
+    "missing_counterparty_id": 10363,
+    "missing_business_unit": 9441,
+    "missing_account_name": 7560,
+    "statistical_outlier": 6456,
+    "missing_payment_date_unpaid": 6140,
+    "document_quarantine_cascade": 4718,
+    "journal_entry_unbalanced": 3862,
+    "duplicate_exact": 2122,
+    "missing_account_id": 1509,
+    "payment_before_invoice": 1222,
+    "missing_expense_category": 970,
+    "missing_customer_segment": 909,
+    "missing_transaction_id": 756,
+    "missing_entity_id": 756,
+    "inconsistent_classification": 745,
+    "duplicate_invoice": 598,
+    "duplicate_business_key": 596,
+    "missing_currency": 493,
+    "negative_amount_not_allowed": 471,
+    "invalid_account_id": 378,
+    "invalid_currency": 355,
+    "subledger_tie_out_failure": 216,
+    "invalid_date": 213,
+    "missing_amount": 75,
+    "amount_mismatch": 47,
+    "duplicate_near": 42,
+    "missing_invoice_amount": 18
+  },
+  "overall_score": 97.97,
+  "dimension_scores": {
+    "completeness": 97.56,
+    "uniqueness": 98.94,
+    "validity": 98.32,
+    "consistency": 99.64,
+    "reconciliation": 95.39
+  }
+}

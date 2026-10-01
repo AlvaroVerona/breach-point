@@ -19,7 +19,7 @@ from app.components.data_loader import (
 from app.components.style import apply_layout, entity_color, page_header
 
 st.set_page_config(page_title="Forecasting | Breach Point", layout="wide")
-page_header("Forecasting", "12-month-ahead forecast per entity, best model selected on a blind 6-month holdout (see CLAUDE.md).")
+page_header("Forecasting", "12-month-ahead forecast per entity, best model selected on a blind 6-month holdout (see docs/ENGINEERING_LOG.md).")
 
 if not outputs_available():
     st.warning("No pipeline outputs found. Run `make train` first.")
