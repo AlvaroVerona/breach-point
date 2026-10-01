@@ -6,7 +6,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Run the dashboard locally in 2 minutes:** `pip install -e .` then `make dashboard` —
+**[Live demo](https://breach-point-finance.streamlit.app/)** · or run the dashboard locally in 2 minutes: `pip install -e .` then `make dashboard` —
 the results of a full run are included in `reports/outputs/`, so no pipeline run is needed.
 
 An end-to-end financial analytics and decision-intelligence platform: it validates
@@ -186,15 +186,19 @@ cheaper levers covered the shortfall first).
 produced) rather than recomputing the pipeline per click.
 
 <p align="center">
-  <img src="docs/screenshots/executive_overview.jpg" width="32%" alt="Executive Overview" />
-  <img src="docs/screenshots/liquidity_risk.jpg" width="32%" alt="Liquidity Risk fan chart" />
-  <img src="docs/screenshots/optimization.jpg" width="32%" alt="Optimization before/after" />
+  <img src="docs/screenshots/executive_overview.jpg" width="49%" alt="Executive Overview" />
+  <img src="docs/screenshots/data_quality.jpg" width="49%" alt="Data Quality" />
+  <img src="docs/screenshots/financial_statements.jpg" width="49%" alt="Financial Statements" />
+  <img src="docs/screenshots/working_capital.jpg" width="49%" alt="Working Capital: DSO / DPO / DIO / CCC" />
+  <img src="docs/screenshots/forecasting.jpg" width="49%" alt="Forecasting with model comparison" />
+  <img src="docs/screenshots/liquidity_risk.jpg" width="49%" alt="Liquidity Risk Monte Carlo fan chart" />
+  <img src="docs/screenshots/optimization.jpg" width="49%" alt="Cash management optimization, CRITICAL to LOW" />
 </p>
 
 Executive Overview · Data Quality (filterable quarantine table, joined back to
 entity/source/account) · Financial Statements · Working Capital · Forecasting ·
-Liquidity Risk (Monte Carlo fan chart shown above) · Optimization (before/after
-comparison shown above, CRITICAL → LOW).
+Liquidity Risk (Monte Carlo fan chart) · Optimization (before/after comparison,
+CRITICAL → LOW). Try them live in the [demo](https://breach-point-finance.streamlit.app/).
 
 ## Verification
 
